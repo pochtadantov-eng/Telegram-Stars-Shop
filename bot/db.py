@@ -31,16 +31,15 @@ class DB:
         await self.conn.commit()
 
     async def upsert_user(self, uid: int, username: str | None, ref_by: int | None = None):
-        cur = await self.conn.execute("SELECT 1 FROM users WHERE id=?", (uid,))
-        if await cur.fetchone():
-            await self.conn.execute("UPDATE users SET username=? WHERE id=?", (username, uid))
-        else:
-            ref = ref_by if ref_by and ref_by != uid else None
-            if ref:
-                c = await self.conn.execute("SELECT 1 FROM users WHERE id=?", (ref,))
-                ref = ref if await c.fetchone() else None
-            await self.conn.execute(
-                "INSERT INTO users(id,username,ref_by,created) VALUES(?,?,?,?)", (uid, username, ref, int(time.time())))
+        ref = ref_by if ref_by and ref_by != uid else None
+        if ref:
+            c = await self.conn.execute("SELECT 1 FROM users WHERE id=?", (ref,))
+            ref = ref if await c.fetchone() else None
+        # атомарно: параллельные /start не вызывают конфликта
+        await self.conn.execute(
+            "INSERT INTO users(id,username,ref_by,created) VALUES(?,?,?,?) "
+            "ON CONFLICT(id) DO UPDATE SET username=excluded.username",
+            (uid, username, ref, int(time.time())))
         await self.conn.commit()
 
     async def create_order(self, uid, kind, qty, target, rub: Decimal, rate: Decimal | None) -> int:
