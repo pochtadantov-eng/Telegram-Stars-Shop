@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import os
 
+from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -19,6 +21,12 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(build(cfg, db))
     await bot.set_my_commands([])
+    if os.getenv("PORT"):  # хостингам с health-check (Koyeb/Render web) нужен открытый порт
+        app = web.Application()
+        app.router.add_get("/", lambda _: web.Response(text="ok"))
+        runner = web.AppRunner(app)
+        await runner.setup()
+        await web.TCPSite(runner, "0.0.0.0", int(os.environ["PORT"])).start()
     await dp.start_polling(bot)
 
 
