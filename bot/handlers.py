@@ -201,7 +201,7 @@ def build(cfg: Config, db: DB) -> Router:
             to = f"Кошелёк: <code>{o['target']}</code>\nКурс зафиксирован: {fmt_rub(Decimal(o['rate']).quantize(Decimal('0.01')))} ₽"
         return (
             f"<b>Заказ #{o['id']}</b>\n\n{what}\n{to}\n\n"
-            f"К оплате: <b>{fmt_rub(Decimal(o['rub']))} ₽</b>\n\n{cfg.pay_details}\n\n"
+            f"К оплате: <b>{fmt_rub(Decimal(o['rub']))} ₽</b>\n\n{cfg.pay_details_stars if o['kind'] == 'stars' else cfg.pay_details_ton}\n\n"
             "После перевода нажми «Я оплатил». Заказ действует 30 минут."
         )
 

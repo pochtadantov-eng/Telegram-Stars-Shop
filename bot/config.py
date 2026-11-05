@@ -11,6 +11,10 @@ def _ids(raw: str) -> list[int]:
     return [int(x) for x in raw.replace(" ", "").split(",") if x]
 
 
+def _pay(name: str, default: str) -> str:
+    return os.getenv(name, default).replace("\\n", "\n")
+
+
 @dataclass(frozen=True)
 class Config:
     token: str
@@ -23,6 +27,8 @@ class Config:
     min_ton: Decimal
     ref_percent: Decimal
     pay_details: str
+    pay_details_stars: str
+    pay_details_ton: str
     support_url: str
     reviews_url: str
     db_path: str
@@ -39,7 +45,9 @@ def load() -> Config:
         ton_markup=Decimal(os.getenv("TON_MARKUP_PERCENT", "0")),
         min_ton=Decimal(os.getenv("MIN_TON", "1")),
         ref_percent=Decimal(os.getenv("REF_PERCENT", "3")),
-        pay_details=os.getenv("PAY_DETAILS", "Реквизиты не настроены").replace("\\n", "\n"),
+        pay_details=_pay("PAY_DETAILS", "Реквизиты не настроены"),
+        pay_details_stars=_pay("PAY_DETAILS_STARS", _pay("PAY_DETAILS", "Реквизиты не настроены")),
+        pay_details_ton=_pay("PAY_DETAILS_TON", _pay("PAY_DETAILS", "Реквизиты не настроены")),
         support_url=os.getenv("SUPPORT_URL", "https://t.me/telegram"),
         reviews_url=os.getenv("REVIEWS_URL", "https://t.me/telegram"),
         db_path=os.getenv("DB_PATH", "data/shop.db"),
