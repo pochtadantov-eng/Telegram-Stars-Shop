@@ -26,6 +26,31 @@ async def _binance(s) -> Decimal:
     return Decimal(ton["price"]) * Decimal(usdt["price"])
 
 
+_usdt: tuple[float, Decimal] | None = None
+
+
+async def usdt_rub() -> Decimal:
+    """Курс USDT/RUB (кэш 60 с, Binance -> CoinGecko)."""
+    global _usdt
+    if _usdt and time.monotonic() - _usdt[0] < TTL:
+        return _usdt[1]
+    async with aiohttp.ClientSession() as s:
+        for fn in (
+            lambda: _get(s, "https://api.binance.com/api/v3/ticker/price", symbol="USDTRUB"),
+            lambda: _get(s, "https://api.coingecko.com/api/v3/simple/price", ids="tether", vs_currencies="rub"),
+        ):
+            try:
+                d = await fn()
+                rate = Decimal(d["price"]) if "price" in d else Decimal(str(d["tether"]["rub"]))
+                _usdt = (time.monotonic(), rate)
+                return rate
+            except Exception as e:  # noqa: BLE001
+                log.warning("usdt rate failed: %s", e)
+    if _usdt:
+        return _usdt[1]
+    raise RuntimeError("USDT rate unavailable")
+
+
 async def ton_rub() -> Decimal:
     """Актуальный курс TON/RUB (кэш 60 с, два источника, при сбое — последнее значение)."""
     global _cache

@@ -12,8 +12,8 @@ from aiogram.types import CallbackQuery, Message
 from . import keyboards as K
 from .config import Config
 from .db import DB
-from .pricing import fmt_rub, stars_price, ton_price
-from .rates import ton_rub
+from .pricing import fmt_rub, stars_price, to_crypto, ton_price
+from .rates import ton_rub, usdt_rub
 from .ui import show
 
 log = logging.getLogger(__name__)
@@ -91,12 +91,50 @@ def build(cfg: Config, db: DB) -> Router:
         await state.set_state(None)
         await stars_qty_chosen(m, state, int(t))
 
+    async def crypto_rates() -> dict[str, Decimal]:
+        """Курсы монет->₽ для включённых способов (недоступные пропускаются)."""
+        out = {}
+        for cur, enabled, fn in (("USDT", cfg.pay_crypto_usdt, usdt_rub), ("TON", cfg.pay_crypto_ton, ton_rub)):
+            if enabled:
+                try:
+                    out[cur] = await fn()
+                except Exception:  # noqa: BLE001
+                    log.warning("no rate for %s", cur)
+        return out
+
+    PLACES = {"USDT": 2, "TON": 3}
+
     async def make_stars_order(target, state: FSMContext, user, username: str):
-        qty = (await state.get_data())["qty"]
+        """После выбора получателя — выбор способа оплаты (рубли или крипта)."""
+        data = await state.get_data()
+        qty = data["qty"]
         rub = stars_price(qty, cfg.star_price)
-        oid = await db.create_order(user.id, "stars", qty, username, rub, None)
+        await state.update_data(target=username)
+        opts = [("RUB", f"💳 Рубли · {fmt_rub(rub)} ₽")]
+        for cur, rate in (await crypto_rates()).items():
+            opts.append((cur, f"{'💵' if cur == 'USDT' else '💎'} {cur} · {to_crypto(rub, rate, PLACES[cur])}"))
+        await show(target, "stars", (
+            f"<b>⭐ {qty} звёзд</b> для {username}\n\nВыбери способ оплаты:"
+        ), K.pay_method(opts))
+
+    @r.callback_query(F.data.regexp(r"^sp:(RUB|USDT|TON)$"))
+    async def stars_pay(c: CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        if "qty" not in data or "target" not in data:
+            await c.answer("Сессия устарела, начни заново", show_alert=True)
+            return await show(c, "home", home_text(), K.main(cfg))
+        cur = c.data[3:]
+        rub = stars_price(data["qty"], cfg.star_price)
+        amt, rate = rub, None
+        if cur != "RUB":
+            rate = (await crypto_rates()).get(cur)
+            if rate is None:
+                return await c.answer("Этот способ сейчас недоступен", show_alert=True)
+            amt = to_crypto(rub, rate, PLACES[cur])
+        await c.answer()
+        oid = await db.create_order(c.from_user.id, "stars", data["qty"], data["target"], rub, rate, cur, amt)
         await state.clear()
-        await show_order(target, oid)
+        await show_order(c, oid)
 
     @r.callback_query(F.data == "s_me")
     async def stars_me(c: CallbackQuery, state: FSMContext):
@@ -194,14 +232,23 @@ def build(cfg: Config, db: DB) -> Router:
 
     # ---------- заказ и оплата ----------
     def order_text(o) -> str:
+        pay_cur = o["pay_cur"]
         if o["kind"] == "stars":
             what, to = f"⭐ {o['qty']} звёзд", f"Получатель: {o['target']}"
+            if pay_cur != "RUB":
+                to += f"\nКурс зафиксирован: 1 {pay_cur} = {fmt_rub(Decimal(o['rate']).quantize(Decimal('0.01')))} ₽"
         else:
             what = f"💎 {Decimal(o['qty']).normalize():f} TON"
             to = f"Кошелёк: <code>{o['target']}</code>\nКурс зафиксирован: {fmt_rub(Decimal(o['rate']).quantize(Decimal('0.01')))} ₽"
+        if pay_cur == "RUB":
+            due = f"{fmt_rub(Decimal(o['rub']))} ₽"
+            details = cfg.pay_details_stars if o["kind"] == "stars" else cfg.pay_details_ton
+        else:
+            due = f"{o['pay_amt']} {pay_cur} (≈ {fmt_rub(Decimal(o['rub']))} ₽)"
+            details = cfg.pay_crypto_usdt if pay_cur == "USDT" else cfg.pay_crypto_ton
         return (
             f"<b>Заказ #{o['id']}</b>\n\n{what}\n{to}\n\n"
-            f"К оплате: <b>{fmt_rub(Decimal(o['rub']))} ₽</b>\n\n{cfg.pay_details_stars if o['kind'] == 'stars' else cfg.pay_details_ton}\n\n"
+            f"К оплате: <b>{due}</b>\n\n{details}\n\n"
             "После перевода нажми «Я оплатил». Заказ действует 30 минут."
         )
 

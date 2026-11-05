@@ -16,3 +16,9 @@ def test_ton_rounds_up_and_markup():
 def test_fmt():
     assert fmt_rub(D("1234.5")) == "1 234,50"
     assert fmt_rub(D("55.00")) == "55"
+
+
+def test_to_crypto_rounds_up():
+    from bot.pricing import to_crypto
+    assert to_crypto(D("110"), D("90"), 2) == D("1.23")   # 1.2222 -> 1.23
+    assert to_crypto(D("110"), D("300"), 3) == D("0.367")  # 0.36666 -> 0.367

@@ -28,6 +28,10 @@ class DB:
         self.conn = await aiosqlite.connect(self.path)
         self.conn.row_factory = aiosqlite.Row
         await self.conn.executescript(SCHEMA)
+        cols = [r[1] for r in await (await self.conn.execute("PRAGMA table_info(orders)")).fetchall()]
+        if "pay_cur" not in cols:
+            await self.conn.execute("ALTER TABLE orders ADD COLUMN pay_cur TEXT NOT NULL DEFAULT 'RUB'")
+            await self.conn.execute("ALTER TABLE orders ADD COLUMN pay_amt TEXT")
         await self.conn.commit()
 
     async def upsert_user(self, uid: int, username: str | None, ref_by: int | None = None):
@@ -42,10 +46,12 @@ class DB:
             (uid, username, ref, int(time.time())))
         await self.conn.commit()
 
-    async def create_order(self, uid, kind, qty, target, rub: Decimal, rate: Decimal | None) -> int:
+    async def create_order(self, uid, kind, qty, target, rub: Decimal, rate: Decimal | None,
+                           pay_cur: str = 'RUB', pay_amt: Decimal | None = None) -> int:
         cur = await self.conn.execute(
-            "INSERT INTO orders(user_id,kind,qty,target,rub,rate,created) VALUES(?,?,?,?,?,?,?)",
-            (uid, kind, str(qty), target, str(rub), str(rate) if rate else None, int(time.time())))
+            "INSERT INTO orders(user_id,kind,qty,target,rub,rate,pay_cur,pay_amt,created) VALUES(?,?,?,?,?,?,?,?,?)",
+            (uid, kind, str(qty), target, str(rub), str(rate) if rate else None,
+             pay_cur, str(pay_amt if pay_amt is not None else rub), int(time.time())))
         await self.conn.commit()
         return cur.lastrowid
 

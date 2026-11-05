@@ -53,6 +53,12 @@ def recipient():
     return kb([cb("🙋 Себе", "s_me"), cb("🎯 Другому", "s_other")], [cb("‹ Назад", "stars")])
 
 
+def pay_method(opts: list[tuple[str, str]]):
+    """opts: [(код, подпись)] -> кнопки выбора способа оплаты."""
+    rows = [[cb(label, f"sp:{code}")] for code, label in opts]
+    return kb(*rows, [cb("‹ Назад", "stars")])
+
+
 def order_kb(oid: int):
     return kb([cb("✅ Я оплатил", f"paid:{oid}")], [cb("✖️ Отменить", f"cancel:{oid}"), cb("‹ Меню", "menu")])
 

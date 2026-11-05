@@ -29,6 +29,8 @@ class Config:
     pay_details: str
     pay_details_stars: str
     pay_details_ton: str
+    pay_crypto_usdt: str
+    pay_crypto_ton: str
     support_url: str
     reviews_url: str
     db_path: str
@@ -48,6 +50,8 @@ def load() -> Config:
         pay_details=_pay("PAY_DETAILS", "Реквизиты не настроены"),
         pay_details_stars=_pay("PAY_DETAILS_STARS", _pay("PAY_DETAILS", "Реквизиты не настроены")),
         pay_details_ton=_pay("PAY_DETAILS_TON", _pay("PAY_DETAILS", "Реквизиты не настроены")),
+        pay_crypto_usdt=_pay("PAY_CRYPTO_USDT", ""),
+        pay_crypto_ton=_pay("PAY_CRYPTO_TON", ""),
         support_url=os.getenv("SUPPORT_URL", "https://t.me/telegram"),
         reviews_url=os.getenv("REVIEWS_URL", "https://t.me/telegram"),
         db_path=os.getenv("DB_PATH", "data/shop.db"),
