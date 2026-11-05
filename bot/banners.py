@@ -102,13 +102,22 @@ def make(name: str, brand: str, path: str):
 
 
 def path(name: str) -> str:
+    """Свой GIF/MP4-баннер (assets/<имя>.gif|mp4) приоритетнее сгенерированной картинки."""
+    for ext in ("gif", "mp4", "jpg"):
+        p = os.path.join(ASSETS, f"{name}.{ext}")
+        if os.path.exists(p):
+            return p
     return os.path.join(ASSETS, f"{name}.jpg")
+
+
+def is_animation(name: str) -> bool:
+    return path(name).endswith((".gif", ".mp4"))
 
 
 def ensure(brand: str, force: bool = False):
     for n in SCREENS:
         if force or not os.path.exists(path(n)):
-            make(n, brand, path(n))
+            make(n, brand, os.path.join(ASSETS, f"{n}.jpg"))
 
 
 if __name__ == "__main__":
