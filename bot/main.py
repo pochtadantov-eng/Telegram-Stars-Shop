@@ -78,6 +78,14 @@ async def main() -> None:
 
     try:
         await dp.start_polling(bot)
+    except Exception:
+        logging.exception(
+            "Polling упал (часто неверный BOT_TOKEN на хостинге). "
+            "HTTP/Mini App продолжают работать — поправьте токен и Redeploy."
+        )
+        # держим процесс живым, чтобы Render не рестартил в цикле
+        while True:
+            await asyncio.sleep(3600)
     finally:
         await runner.cleanup()
         await bot.session.close()

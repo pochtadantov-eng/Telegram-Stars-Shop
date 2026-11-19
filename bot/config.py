@@ -54,10 +54,17 @@ class Config:
 
 def load() -> Config:
     load_dotenv()
-    # Render/мобильный ввод часто добавляет пробелы/переносы в секреты
-    token = (os.getenv("BOT_TOKEN") or "").strip().replace(" ", "").replace("\n", "")
+    # Render/мобильный ввод часто портит секреты (пробелы, кавычки, переносы)
+    token = (os.getenv("BOT_TOKEN") or "").strip()
+    token = token.strip("\"'").replace(" ", "").replace("\n", "").replace("\r", "")
+    token = token.replace("\u00a0", "").replace("\u200b", "")
     if not token:
         raise SystemExit("BOT_TOKEN is required")
+    if ":" not in token or not token.split(":", 1)[0].isdigit():
+        raise SystemExit(
+            "BOT_TOKEN выглядит неверно. Нужен вид 123456:AA…. "
+            "Проверьте Environment на хостинге (без пробелов и кавычек)."
+        )
     return Config(
         token=token,
         admin_ids=_ids(os.getenv("ADMIN_IDS", "")),
