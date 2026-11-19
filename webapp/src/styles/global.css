@@ -724,10 +724,14 @@ button {
 .badge.pending {
   color: #9fd0ff;
 }
+.badge.accepted {
+  color: #ffd35a;
+}
 .badge.done {
   color: var(--ok);
 }
-.badge.rejected {
+.badge.rejected,
+.badge.cancelled {
   color: var(--danger);
 }
 

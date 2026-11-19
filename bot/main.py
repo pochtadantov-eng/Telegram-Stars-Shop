@@ -47,7 +47,14 @@ async def main() -> None:
     async def _notify(order, user):
         await notify_admins(bot, cfg, order, user)
 
+    async def _notify_user(user_id: int, text: str):
+        try:
+            await bot.send_message(user_id, text)
+        except Exception:
+            logging.exception("notify_user failed for %s", user_id)
+
     app["notify_order"] = _notify
+    app["notify_user"] = _notify_user
 
     runner = web.AppRunner(app)
     await runner.setup()

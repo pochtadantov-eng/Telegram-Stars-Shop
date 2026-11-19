@@ -118,7 +118,9 @@ export const METHOD_LABELS: Record<string, string> = {
 };
 
 export const STATUS_LABELS: Record<string, string> = {
-  pending: "В обработке",
-  done: "Выплачено",
+  pending: "Ожидает оператора",
+  accepted: "В работе",
+  done: "Успешно",
   rejected: "Отклонено",
+  cancelled: "Отменено",
 };

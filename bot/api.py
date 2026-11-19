@@ -80,9 +80,9 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                 "totals": totals,
                 "bot_username": app["bot_username"],
                 "terms": (
-                    "Обмен производится вручную оператором. После создания заявки "
-                    "переведите криптовалюту указанным способом. Выплата на СБП/карту "
-                    "в рублях по зафиксированному курсу. Заявки обрабатываются в порядке очереди."
+                    "Обмен ручной: после создания заявки она уходит оператору. "
+                    "Оператор примет заявку, сообщит куда перевести крипту, "
+                    "затем выплатит рубли на СБП/карту по курсу из заявки."
                 ),
             }
         )
@@ -230,10 +230,18 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
             }
         )
 
-        # notify admins via bot if available
+        # заявка уходит админу в этого же бота; клиенту — подтверждение
         notify = app.get("notify_order")
         if notify:
             await notify(order, user)
+        notify_user = app.get("notify_user")
+        if notify_user:
+            await notify_user(
+                user["id"],
+                f"📨 Заявка #{order['id']} создана и отправлена оператору.\n"
+                f"{order['amount']} {order['asset']} → {_money(order['payout'])} ₽\n"
+                "Ожидайте принятия.",
+            )
 
         return web.json_response({"order": order})
 
@@ -270,11 +278,30 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
 
 
 def format_order_admin(order: dict[str, Any], user: dict[str, Any]) -> str:
-    uname = f"@{user['username']}" if user.get("username") else user.get("first_name") or user["id"]
+    uname = (
+        f"@{user['username']}"
+        if user.get("username")
+        else user.get("first_name") or user["id"]
+    )
+    status = order.get("status", "pending")
+    status_ru = {
+        "pending": "ожидает",
+        "accepted": "в работе",
+        "done": "успешно",
+        "rejected": "отклонена",
+        "cancelled": "отменена",
+    }.get(status, status)
+    method = order["method"]
+    method_ru = {
+        "cryptobot": "Crypto Bot чеком",
+        "trc20": "TRC20",
+        "ton": "TON",
+        "xrocket": "xRocket чеком",
+    }.get(method, method)
     lines = [
-        f"🆕 Заявка #{order['id']}",
+        f"🆕 Заявка #{order['id']} · <b>{status_ru}</b>",
         f"Клиент: {uname} (<code>{user['id']}</code>)",
-        f"Отдаёт: <b>{order['amount']} {order['asset']}</b> ({order['method']})",
+        f"Отдаёт: <b>{order['amount']} {order['asset']}</b> ({method_ru})",
         f"Курс: {_money(order['rate'])} ₽",
         f"К выплате: <b>{_money(order['payout'])} ₽</b>",
         f"Бонус: {_money(order['bonus_used'])} ₽",
@@ -287,4 +314,6 @@ def format_order_admin(order: dict[str, Any], user: dict[str, Any]) -> str:
         lines.append(f"Карта: <code>{order['card_number']}</code>")
     if order.get("want_pdf"):
         lines.append("PDF-чек: да")
+    if order.get("cancel_reason"):
+        lines.append(f"Причина отмены: {order['cancel_reason']}")
     return "\n".join(lines)

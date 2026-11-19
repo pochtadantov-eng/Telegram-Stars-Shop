@@ -6,6 +6,12 @@ from typing import Any
 
 import aiosqlite
 
+# pending → accepted → done
+# pending → rejected
+# accepted → cancelled (с причиной)
+OPEN_STATUSES = ("pending", "accepted")
+TERMINAL_STATUSES = ("done", "rejected", "cancelled")
+
 
 class DB:
     def __init__(self, path: str):
@@ -54,6 +60,7 @@ class DB:
                     card_number TEXT,
                     want_pdf INTEGER NOT NULL DEFAULT 1,
                     status TEXT NOT NULL,
+                    cancel_reason TEXT,
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL,
                     completed_at REAL
@@ -64,6 +71,11 @@ class DB:
                 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
                 """
             )
+            # миграция для уже существующих БД
+            cur = await db.execute("PRAGMA table_info(orders)")
+            cols = {row[1] for row in await cur.fetchall()}
+            if "cancel_reason" not in cols:
+                await db.execute("ALTER TABLE orders ADD COLUMN cancel_reason TEXT")
             await db.commit()
 
     async def upsert_user(
@@ -189,14 +201,21 @@ class DB:
             )
             return [dict(r) for r in await cur.fetchall()]
 
-    async def list_pending(self, limit: int = 50) -> list[dict[str, Any]]:
+    async def list_open(self, limit: int = 50) -> list[dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             cur = await db.execute(
-                "SELECT * FROM orders WHERE status='pending' ORDER BY id ASC LIMIT ?",
+                """
+                SELECT * FROM orders
+                WHERE status IN ('pending', 'accepted')
+                ORDER BY id ASC LIMIT ?
+                """,
                 (limit,),
             )
             return [dict(r) for r in await cur.fetchall()]
+
+    async def list_pending(self, limit: int = 50) -> list[dict[str, Any]]:
+        return await self.list_open(limit)
 
     async def get_order(self, order_id: int) -> dict[str, Any] | None:
         async with aiosqlite.connect(self.path) as db:
@@ -211,8 +230,14 @@ class DB:
         status: str,
         *,
         ref_bonus: float = 0,
+        cancel_reason: str | None = None,
     ) -> dict[str, Any] | None:
+        """Смена статуса с проверкой переходов. Возвращает заказ или None."""
         now = time.time()
+        allowed = {
+            "pending": {"accepted", "rejected"},
+            "accepted": {"done", "cancelled"},
+        }
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             cur = await db.execute("SELECT * FROM orders WHERE id=?", (order_id,))
@@ -220,13 +245,19 @@ class DB:
             if not order:
                 return None
             order = dict(order)
-            if order["status"] != "pending":
-                return order
+            current = order["status"]
+            if status not in allowed.get(current, set()):
+                return order  # недопустимый переход — вернём как есть
 
-            completed = now if status == "done" else None
+            completed = now if status in ("done", "rejected", "cancelled") else None
             await db.execute(
-                "UPDATE orders SET status=?, updated_at=?, completed_at=? WHERE id=?",
-                (status, now, completed, order_id),
+                """
+                UPDATE orders
+                SET status=?, updated_at=?, completed_at=?,
+                    cancel_reason=COALESCE(?, cancel_reason)
+                WHERE id=?
+                """,
+                (status, now, completed, cancel_reason, order_id),
             )
 
             if status == "done":
@@ -254,12 +285,10 @@ class DB:
                 ref_row = await cur.fetchone()
                 referrer_id = ref_row[0] if ref_row else None
                 if referrer_id and ref_bonus > 0:
-                    # бонус только за первую успешную сделку реферала
                     cur = await db.execute(
                         "SELECT deals FROM users WHERE id=?", (order["user_id"],)
                     )
                     deals_row = await cur.fetchone()
-                    # deals already incremented above, so first success => deals == 1
                     if deals_row and deals_row[0] == 1:
                         await db.execute(
                             """
@@ -271,7 +300,7 @@ class DB:
                             """,
                             (ref_bonus, ref_bonus, now, referrer_id),
                         )
-            elif status == "rejected" and order["bonus_used"] > 0:
+            elif status in ("rejected", "cancelled") and order["bonus_used"] > 0:
                 await db.execute(
                     "UPDATE users SET bonus_balance = bonus_balance + ?, updated_at=? WHERE id=?",
                     (order["bonus_used"], now, order["user_id"]),
