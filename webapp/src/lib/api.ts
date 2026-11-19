@@ -65,8 +65,12 @@ export type LeaderItem = {
 function headers(): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };
   const initData = tg()?.initData;
-  if (initData) h["X-Telegram-Init-Data"] = initData;
-  else if (import.meta.env.DEV) h["X-Dev-User"] = "1001";
+  if (initData) {
+    // Официальный способ — не ломает спецсимволы initData в HTTP-заголовках
+    h.Authorization = `tma ${initData}`;
+  } else if (import.meta.env.DEV) {
+    h["X-Dev-User"] = "1001";
+  }
   return h;
 }
 

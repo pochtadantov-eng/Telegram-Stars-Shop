@@ -25,3 +25,14 @@ export function haptic(kind: "tap" | "select" = "tap") {
     /* noop */
   }
 }
+
+/** Ждём, пока Telegram отдаст initData (на iOS бывает с задержкой). */
+export async function waitForInitData(timeoutMs = 4000): Promise<string> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const data = tg()?.initData || "";
+    if (data) return data;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return tg()?.initData || "";
+}

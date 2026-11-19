@@ -6,7 +6,7 @@ from typing import Any
 
 from aiohttp import web
 
-from .auth import parse_start_param, validate_init_data
+from .auth import extract_init_data, parse_start_param, validate_init_data
 from .config import Config
 from .db import DB
 from .rates import get_rates, week_ends_in, week_start_ts
@@ -29,20 +29,34 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
     app["bot_username"] = bot_username or ""
 
     async def user_from_request(request: web.Request) -> dict[str, Any]:
-        init_data = request.headers.get("X-Telegram-Init-Data", "")
-        user = validate_init_data(init_data, cfg.token)
-        if not user:
-            # Dev fallback when Mini App opened outside Telegram
+        init_data = extract_init_data(request)
+        if not init_data:
             if request.headers.get("X-Dev-User"):
                 try:
                     uid = int(request.headers["X-Dev-User"])
                 except ValueError as exc:
                     raise web.HTTPUnauthorized(text="invalid user") from exc
                 user = {"id": uid, "username": "dev", "first_name": "Dev"}
-            else:
-                raise web.HTTPUnauthorized(text="invalid initData")
+                return await db.upsert_user(
+                    user_id=uid,
+                    username="dev",
+                    first_name="Dev",
+                    last_name=None,
+                    photo_url=None,
+                    referrer_id=None,
+                )
+            raise web.HTTPUnauthorized(
+                text="no initData — откройте Mini App из Telegram-бота"
+            )
 
-        start = parse_start_param(init_data) if init_data else None
+        user = validate_init_data(init_data, cfg.token)
+        if not user:
+            raise web.HTTPUnauthorized(
+                text="invalid initData — проверьте BOT_TOKEN на Render "
+                "(должен быть токен именно этого бота, без пробелов)"
+            )
+
+        start = parse_start_param(init_data)
         referrer_id = None
         if start and start.startswith("r"):
             raw = start[1:]
@@ -56,6 +70,17 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
             last_name=user.get("last_name"),
             photo_url=user.get("photo_url"),
             referrer_id=referrer_id,
+        )
+
+    async def api_health(_: web.Request) -> web.Response:
+        token_ok = bool(cfg.token) and ":" in cfg.token and " " not in cfg.token
+        return web.json_response(
+            {
+                "ok": True,
+                "bot_username": app["bot_username"],
+                "token_configured": token_ok,
+                "webapp_url": cfg.webapp_url or None,
+            }
         )
 
     async def api_config(_: web.Request) -> web.Response:
@@ -245,6 +270,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
 
         return web.json_response({"order": order})
 
+    app.router.add_get("/api/health", api_health)
     app.router.add_get("/api/config", api_config)
     app.router.add_get("/api/me", api_me)
     app.router.add_get("/api/rates", api_rates)

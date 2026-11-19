@@ -6,7 +6,7 @@ import {
   type Me,
   type Order,
 } from "./lib/api";
-import { initTelegram, tg } from "./lib/telegram";
+import { initTelegram, tg, waitForInitData } from "./lib/telegram";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
 import { Top } from "./pages/Top";
@@ -36,10 +36,30 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    initTelegram();
-    refresh()
-      .catch((e) => setError(e instanceof Error ? e.message : "Ошибка загрузки"))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      initTelegram();
+      const initData = await waitForInitData();
+      if (!initData && !import.meta.env.DEV) {
+        if (!cancelled) {
+          setError("Нет данных Telegram. Откройте Mini App кнопкой из бота @CryptoTradesi_bot");
+          setLoading(false);
+        }
+        return;
+      }
+      try {
+        await refresh();
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Ошибка загрузки");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [refresh]);
 
   useEffect(() => {
