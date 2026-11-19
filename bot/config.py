@@ -54,7 +54,8 @@ class Config:
 
 def load() -> Config:
     load_dotenv()
-    token = os.getenv("BOT_TOKEN", "").strip()
+    # Render/мобильный ввод часто добавляет пробелы/переносы в секреты
+    token = (os.getenv("BOT_TOKEN") or "").strip().replace(" ", "").replace("\n", "")
     if not token:
         raise SystemExit("BOT_TOKEN is required")
     return Config(
