@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: swiftex
+    runtime: docker
+    plan: free
+    branch: cursor/crypto-exchange-miniapp-3367
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: DB_PATH
+        value: /data/exchange.db
+      - key: ADMIN_IDS
+        value: "8557314630"
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
+      - key: USDT_RATE_RUB
+        value: "96"
+      - key: TON_RATE_RUB
+        value: "550"
