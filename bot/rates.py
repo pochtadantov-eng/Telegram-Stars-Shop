@@ -1,69 +1,43 @@
-import logging
-import time
-from decimal import Decimal
+from __future__ import annotations
 
-import aiohttp
-
-log = logging.getLogger(__name__)
-TTL = 60
-_cache: tuple[float, Decimal] | None = None
+from .config import Config
+from .db import DB
 
 
-async def _get(session: aiohttp.ClientSession, url: str, **params):
-    async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=8)) as r:
-        r.raise_for_status()
-        return await r.json()
+async def get_rates(cfg: Config, db: DB) -> dict[str, float]:
+    usdt = await db.get_setting("usdt_rate")
+    ton = await db.get_setting("ton_rate")
+    return {
+        "USDT": float(usdt) if usdt else cfg.usdt_rate,
+        "TON": float(ton) if ton else cfg.ton_rate,
+    }
 
 
-async def _coingecko(s) -> Decimal:
-    d = await _get(s, "https://api.coingecko.com/api/v3/simple/price", ids="the-open-network", vs_currencies="rub")
-    return Decimal(str(d["the-open-network"]["rub"]))
+async def set_rate(db: DB, asset: str, value: float) -> None:
+    key = "usdt_rate" if asset.upper() == "USDT" else "ton_rate"
+    await db.set_setting(key, str(value))
 
 
-async def _binance(s) -> Decimal:
-    ton = await _get(s, "https://api.binance.com/api/v3/ticker/price", symbol="TONUSDT")
-    usdt = await _get(s, "https://api.binance.com/api/v3/ticker/price", symbol="USDTRUB")
-    return Decimal(ton["price"]) * Decimal(usdt["price"])
+def week_start_ts(now: float | None = None) -> float:
+    import time
+    from datetime import datetime, timezone, timedelta
+
+    # Неделя с понедельника 00:00 Europe/Moscow (UTC+3)
+    tz = timezone(timedelta(hours=3))
+    dt = datetime.fromtimestamp(now or time.time(), tz=tz)
+    monday = dt - timedelta(days=dt.weekday())
+    monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+    return monday.timestamp()
 
 
-_usdt: tuple[float, Decimal] | None = None
+def week_ends_in(now: float | None = None) -> int:
+    import time
+    from datetime import datetime, timezone, timedelta
 
-
-async def usdt_rub() -> Decimal:
-    """Курс USDT/RUB (кэш 60 с, Binance -> CoinGecko)."""
-    global _usdt
-    if _usdt and time.monotonic() - _usdt[0] < TTL:
-        return _usdt[1]
-    async with aiohttp.ClientSession() as s:
-        for fn in (
-            lambda: _get(s, "https://api.binance.com/api/v3/ticker/price", symbol="USDTRUB"),
-            lambda: _get(s, "https://api.coingecko.com/api/v3/simple/price", ids="tether", vs_currencies="rub"),
-        ):
-            try:
-                d = await fn()
-                rate = Decimal(d["price"]) if "price" in d else Decimal(str(d["tether"]["rub"]))
-                _usdt = (time.monotonic(), rate)
-                return rate
-            except Exception as e:  # noqa: BLE001
-                log.warning("usdt rate failed: %s", e)
-    if _usdt:
-        return _usdt[1]
-    raise RuntimeError("USDT rate unavailable")
-
-
-async def ton_rub() -> Decimal:
-    """Актуальный курс TON/RUB (кэш 60 с, два источника, при сбое — последнее значение)."""
-    global _cache
-    if _cache and time.monotonic() - _cache[0] < TTL:
-        return _cache[1]
-    async with aiohttp.ClientSession() as s:
-        for src in (_coingecko, _binance):
-            try:
-                rate = await src(s)
-                _cache = (time.monotonic(), rate)
-                return rate
-            except Exception as e:  # noqa: BLE001
-                log.warning("rate source %s failed: %s", src.__name__, e)
-    if _cache:
-        return _cache[1]
-    raise RuntimeError("TON rate unavailable")
+    tz = timezone(timedelta(hours=3))
+    dt = datetime.fromtimestamp(now or time.time(), tz=tz)
+    monday = dt - timedelta(days=dt.weekday())
+    next_monday = (monday + timedelta(days=7)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return max(0, int(next_monday.timestamp() - dt.timestamp()))
