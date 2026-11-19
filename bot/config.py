@@ -1,58 +1,83 @@
+from __future__ import annotations
+
 import os
-from dataclasses import dataclass
-from decimal import Decimal
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
-load_dotenv()
+
+def _ids(raw: str) -> set[int]:
+    out: set[int] = set()
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if part.isdigit():
+            out.add(int(part))
+    return out
 
 
-def _ids(raw: str) -> list[int]:
-    return [int(x) for x in raw.replace(" ", "").split(",") if x]
+def _prizes(raw: str) -> list[float]:
+    items: list[float] = []
+    for part in (raw or "3000,2000,1000").split(","):
+        part = part.strip().replace(",", ".")
+        if not part:
+            continue
+        try:
+            items.append(float(part))
+        except ValueError:
+            continue
+    return items or [3000.0, 2000.0, 1000.0]
 
 
-def _pay(name: str, default: str) -> str:
-    return os.getenv(name, default).replace("\\n", "\n")
-
-
-@dataclass(frozen=True)
+@dataclass
 class Config:
     token: str
-    admin_ids: list[int]
+    admin_ids: set[int]
     brand: str
-    star_price: Decimal
-    min_stars: int
-    max_stars: int
-    ton_markup: Decimal
-    min_ton: Decimal
-    ref_percent: Decimal
-    pay_details: str
-    pay_details_stars: str
-    pay_details_ton: str
-    pay_crypto_usdt: str
-    pay_crypto_ton: str
+    webapp_url: str
+    usdt_rate: float
+    ton_rate: float
+    min_usdt: float
+    min_ton: float
+    ref_bonus: float
+    delay_compensation: float
+    order_cooldown_sec: int
+    order_sla_sec: int
+    wallet_usdt_trc20: str
+    wallet_usdt_ton: str
+    wallet_ton: str
     support_url: str
-    reviews_url: str
-    db_path: str
+    weekly_prizes: list[float] = field(default_factory=list)
+    db_path: str = "data/exchange.db"
+    port: int = 8080
+
+    @property
+    def brand_title(self) -> str:
+        return f"{self.brand} | Exchange"
 
 
 def load() -> Config:
+    load_dotenv()
+    token = os.getenv("BOT_TOKEN", "").strip()
+    if not token:
+        raise SystemExit("BOT_TOKEN is required")
     return Config(
-        token=os.environ["BOT_TOKEN"],
+        token=token,
         admin_ids=_ids(os.getenv("ADMIN_IDS", "")),
-        brand=os.getenv("BRAND", "STARS SHOP"),
-        star_price=Decimal(os.getenv("STAR_PRICE_RUB", "1.1")),
-        min_stars=int(os.getenv("MIN_STARS", "50")),
-        max_stars=int(os.getenv("MAX_STARS", "50000")),
-        ton_markup=Decimal(os.getenv("TON_MARKUP_PERCENT", "0")),
-        min_ton=Decimal(os.getenv("MIN_TON", "1")),
-        ref_percent=Decimal(os.getenv("REF_PERCENT", "3")),
-        pay_details=_pay("PAY_DETAILS", "Реквизиты не настроены"),
-        pay_details_stars=_pay("PAY_DETAILS_STARS", _pay("PAY_DETAILS", "Реквизиты не настроены")),
-        pay_details_ton=_pay("PAY_DETAILS_TON", _pay("PAY_DETAILS", "Реквизиты не настроены")),
-        pay_crypto_usdt=_pay("PAY_CRYPTO_USDT", ""),
-        pay_crypto_ton=_pay("PAY_CRYPTO_TON", ""),
-        support_url=os.getenv("SUPPORT_URL", "https://t.me/telegram"),
-        reviews_url=os.getenv("REVIEWS_URL", "https://t.me/telegram"),
-        db_path=os.getenv("DB_PATH", "data/shop.db"),
+        brand=os.getenv("BRAND", "SwiftEx").strip() or "SwiftEx",
+        webapp_url=os.getenv("WEBAPP_URL", "").strip().rstrip("/"),
+        usdt_rate=float(os.getenv("USDT_RATE_RUB", "96")),
+        ton_rate=float(os.getenv("TON_RATE_RUB", "550")),
+        min_usdt=float(os.getenv("MIN_USDT", "32")),
+        min_ton=float(os.getenv("MIN_TON", "1")),
+        ref_bonus=float(os.getenv("REF_BONUS_RUB", "50")),
+        delay_compensation=float(os.getenv("DELAY_COMPENSATION_RUB", "50")),
+        order_cooldown_sec=int(os.getenv("ORDER_COOLDOWN_SEC", "900")),
+        order_sla_sec=int(os.getenv("ORDER_SLA_SEC", "900")),
+        wallet_usdt_trc20=os.getenv("WALLET_USDT_TRC20", "").strip(),
+        wallet_usdt_ton=os.getenv("WALLET_USDT_TON", "").strip(),
+        wallet_ton=os.getenv("WALLET_TON", "").strip(),
+        support_url=os.getenv("SUPPORT_URL", "https://t.me/").strip(),
+        weekly_prizes=_prizes(os.getenv("WEEKLY_PRIZES", "3000,2000,1000")),
+        db_path=os.getenv("DB_PATH", "data/exchange.db"),
+        port=int(os.getenv("PORT", "8080")),
     )

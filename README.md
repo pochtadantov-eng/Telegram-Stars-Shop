@@ -1,21 +1,46 @@
-# Telegram Stars Shop
+# SwiftEx — Telegram Mini App для продажи крипты
 
-Бот для покупки **Telegram Stars** (1,1 ₽ за звезду) и **TON** (по актуальному рыночному курсу).
-Оформление: баннер + подпись, инлайн-кнопки в 2 колонки, одно сообщение редактируется на месте.
+Бот + Mini App: клиент продаёт **USDT** (TRC20 / TON) или **TON**, получает рубли на СБП/карту.
+Оформление в стиле glassmorphism, плавные переходы, клики со звуком и haptic.
 
-## Запуск
+## Возможности
+- Mini App: главная, создание обмена, профиль, заявки, топ недели
+- Курсы USDT/TON задаются в `.env` или командой `/rate`
+- Рефералка: бонус за первый успешный обмен реферала
+- Админам приходит заявка с кнопками «Выплачено / Отклонить»
+
+## Быстрый старт
 ```bash
+# Backend
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # впиши BOT_TOKEN, ADMIN_IDS, реквизиты
+cp .env.example .env   # BOT_TOKEN, ADMIN_IDS, WEBAPP_URL, кошельки
+
+# Mini App
+cd webapp && npm install && npm run build && cd ..
+
 python -m bot.main
 ```
-Баннеры генерируются автоматически (`python -m bot.banners` — пересоздать; название задаётся `BRAND`).
 
-## Как это работает
-1. Клиент выбирает звёзды/TON → получателя (@username или TON-адрес) → получает заказ с суммой и реквизитами.
-2. Жмёт «Я оплатил» → админам приходит заявка с кнопками «Выдано / Отклонить» (`/orders` — список ожидающих).
-3. После «Выдано» клиент получает уведомление. Курс TON (CoinGecko → резерв Binance) кэшируется на 60 с и
-   фиксируется в заказе; заказ действует 30 минут.
+`WEBAPP_URL` — публичный HTTPS URL, который смотрит на этот же сервис (порт `PORT`).
+В Telegram BotFather → Bot Settings → Menu Button / Web App укажите тот же URL.
 
-Выдачу звёзд/TON админ делает вручную (например, через Fragment). Автовыдачу и приём платежей через
-платёжный провайдер можно подключить в `handlers.py` (`paid` / `admin_action`).
+### Команды админа
+- `/rate USDT 96` / `/rate TON 550` — курс
+- `/orders` — ожидающие заявки
+- `/app` — открыть Mini App
+
+## Docker
+```bash
+docker build -t swiftex .
+docker run --env-file .env -p 8080:8080 swiftex
+```
+
+## Dev Mini App
+```bash
+# терминал 1
+BOT_TOKEN=... ADMIN_IDS=1 WEBAPP_URL=http://127.0.0.1:8080 python -m bot.main
+# терминал 2
+cd webapp && npm run dev
+```
+В dev без Telegram API шлёт заголовок `X-Dev-User`.

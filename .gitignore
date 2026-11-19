@@ -1,5 +1,11 @@
-.env
-data/
 __pycache__/
-*.pyc
-.pytest_cache/
+*.py[cod]
+.env
+.venv/
+venv/
+data/*.db
+node_modules/
+webapp/dist/
+.DS_Store
+*.log
+assets/ref/
