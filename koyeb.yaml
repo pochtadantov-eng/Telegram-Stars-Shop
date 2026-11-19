@@ -1,0 +1,25 @@
+# Деплой: https://app.koyeb.com → Create App → GitHub
+# Репозиторий: pochtadantov-eng/Telegram-Stars-Shop
+name: swiftex-exchange
+services:
+  - name: bot
+    type: web
+    routes:
+      - path: /
+    ports:
+      - port: 8080
+        protocol: http
+    instance_types:
+      - type: free
+    scaling:
+      min: 1
+      max: 1
+    env:
+      - name: PORT
+        value: "8080"
+      - name: DB_PATH
+        value: /data/exchange.db
+      # Задай в UI Koyeb (Secrets):
+      # BOT_TOKEN, ADMIN_IDS, WEBAPP_URL, USDT_RATE_RUB, TON_RATE_RUB
+    regions:
+      - fra

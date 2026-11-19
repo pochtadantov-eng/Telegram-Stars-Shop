@@ -36,6 +36,24 @@ python -m bot.main
 3. После принятия: сам договариваешься о переводе крипты
 4. **Закрыть успешно** или **Отменить** (бот спросит причину)
 
+
+## Деплой бесплатно (Koyeb)
+
+Koyeb free instance **не засыпает** (в отличие от Render free) — удобно для Telegram-бота.
+
+1. Зайди с телефона на [app.koyeb.com](https://app.koyeb.com) → Sign up через **GitHub**
+2. **Create App** → Import `Telegram-Stars-Shop`
+3. Builder: **Dockerfile**
+4. Environment variables:
+   - `BOT_TOKEN` = токен бота
+   - `ADMIN_IDS` = твой Telegram ID
+   - `WEBAPP_URL` = пока оставь пустым, после первого деплоя вставь выданный `https://….koyeb.app`
+   - `USDT_RATE_RUB`, `TON_RATE_RUB` по желанию
+5. Deploy → скопируй публичный URL → впиши в `WEBAPP_URL` → Redeploy
+6. BotFather → `/mybots` → бот → **Bot Settings** → **Menu Button** / **Configure Mini App** → тот же URL
+
+База SQLite на free без постоянного диска может сбрасываться при редеплое — для старта ок; при росте лучше внешняя БД или VPS (~300–500₽/мес).
+
 ## Docker
 ```bash
 docker build -t swiftex .
