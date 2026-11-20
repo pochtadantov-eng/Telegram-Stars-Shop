@@ -4,8 +4,8 @@
   --blue: #1e7dff;
   --blue-bright: #3aa0ff;
   --blue-glow: rgba(40, 140, 255, 0.55);
-  --glass: rgba(12, 28, 64, 0.48);
-  --glass-strong: rgba(10, 24, 58, 0.72);
+  --glass: rgba(12, 28, 64, 0.34);
+  --glass-strong: rgba(10, 24, 58, 0.5);
   --stroke: rgba(140, 190, 255, 0.28);
   --stroke-strong: rgba(160, 210, 255, 0.45);
   --text: #f4f8ff;
@@ -83,9 +83,11 @@ button {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  /* ярче фон: слабее затемнение + лёгкий brightness на фото */
   background:
-    linear-gradient(180deg, rgba(4, 11, 28, 0.55) 0%, rgba(4, 11, 28, 0.72) 45%, rgba(4, 11, 28, 0.88) 100%),
+    linear-gradient(180deg, rgba(4, 11, 28, 0.28) 0%, rgba(4, 11, 28, 0.4) 45%, rgba(4, 11, 28, 0.55) 100%),
     url("/bg.jpg") center top / cover no-repeat;
+  filter: brightness(1.22) contrast(1.04);
   z-index: 0;
 }
 
@@ -129,17 +131,17 @@ button {
 }
 
 .glass {
-  /* плотнее фон — blur может кратко отвалиться при переходах, плашка не «мигает» */
+  /* более прозрачный liquid glass — снимок для отката: stores/self/glass-bg-snapshot.md */
   background: linear-gradient(
     145deg,
-    rgba(16, 36, 78, 0.82),
-    rgba(8, 18, 42, 0.88)
+    rgba(16, 36, 78, 0.42),
+    rgba(8, 18, 42, 0.52)
   );
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   isolation: isolate;
@@ -820,7 +822,13 @@ button {
 }
 
 .exchange-card.give {
-  background: linear-gradient(160deg, rgba(18, 40, 90, 0.7), rgba(8, 18, 42, 0.75));
+  background: linear-gradient(160deg, rgba(18, 40, 90, 0.48), rgba(8, 18, 42, 0.55));
+  overflow: visible;
+}
+
+.exchange-card.give.picker-open {
+  z-index: 50;
+  position: relative;
 }
 
 .exchange-card.get {
@@ -892,7 +900,7 @@ button {
 .asset-picker-wrap {
   position: relative;
   flex-shrink: 0;
-  z-index: 5;
+  z-index: 60;
 }
 
 .asset-pill {
@@ -930,7 +938,7 @@ button {
   background: rgba(8, 20, 48, 0.96);
   border: 1px solid rgba(150, 190, 240, 0.35);
   box-shadow: 0 12px 32px rgba(0, 10, 40, 0.55);
-  z-index: 20;
+  z-index: 70;
 }
 
 .asset-menu-item {
@@ -965,7 +973,7 @@ button {
 .asset-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 15;
+  z-index: 45;
   background: transparent;
 }
 
@@ -1196,7 +1204,7 @@ button {
 .rate-bar-soft {
   background: linear-gradient(90deg, #2a6fbf 0%, #3d8fd4 55%, #4ea3e0 100%);
   border: 1px solid rgba(170, 210, 255, 0.28);
-  padding: 0 4px;
+  padding: 0;
   overflow: hidden;
   height: 44px;
   display: flex;
@@ -1207,20 +1215,20 @@ button {
 .marquee {
   width: 100%;
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
 
 .marquee-track {
   display: inline-flex;
   width: max-content;
-  animation: marqueeRight 22s linear infinite;
+  animation: marqueeRight 18s linear infinite;
 }
 
 .marquee-chunk {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 28px;
+  gap: 6px;
+  padding: 0 14px;
   white-space: nowrap;
   font-size: 14px;
   font-weight: 800;
@@ -1230,18 +1238,17 @@ button {
   width: 18px;
   height: 18px;
   object-fit: contain;
-  margin-right: 2px;
 }
 
 .marquee-gap {
   display: inline-block;
-  width: 22px;
+  width: 10px;
   flex-shrink: 0;
 }
 
 .marquee-sep {
-  opacity: 0.55;
-  margin: 0 16px;
+  opacity: 0.5;
+  margin: 0 8px 0 4px;
 }
 
 @keyframes marqueeRight {

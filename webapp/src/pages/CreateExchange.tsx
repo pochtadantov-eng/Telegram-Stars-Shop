@@ -158,7 +158,7 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
         </div>
       </div>
 
-      <div className="glass exchange-card give">
+      <div className={`glass exchange-card give ${pickerOpen ? "picker-open" : ""}`}>
         <div className="row-top">
           <span>Вы отдаёте</span>
           <span>
