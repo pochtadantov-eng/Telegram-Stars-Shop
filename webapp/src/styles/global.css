@@ -87,7 +87,7 @@ button {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(4, 11, 28, 0.22) 0%, rgba(4, 11, 28, 0.34) 45%, rgba(4, 11, 28, 0.48) 100%),
+    linear-gradient(180deg, rgba(4, 11, 28, 0.42) 0%, rgba(4, 11, 28, 0.52) 45%, rgba(4, 11, 28, 0.68) 100%),
     url("/bg.jpg") center top / cover no-repeat;
   z-index: 0;
 }
@@ -233,8 +233,11 @@ button {
 }
 
 .tile-lg {
-  padding: 26px 18px;
-  min-height: 112px;
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 22px 16px;
+  min-height: 104px;
 }
 
 .tile:active {
