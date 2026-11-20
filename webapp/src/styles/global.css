@@ -99,7 +99,88 @@ button {
 .page {
   position: relative;
   z-index: 1;
-  /* без opacity/transform анимации — иначе liquid glass слетает при смене раздела */
+}
+
+/* Плавное короткое «выпадение» иконок при входе в раздел (не на .glass — blur не ломается) */
+@keyframes iconDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes contentIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page .tile-icon-img,
+.page .square-tile-icon,
+.page .tile-icon,
+.page .coin-logo,
+.page .avatar,
+.page .asset-pill-logo,
+.page .logo-orb {
+  animation: iconDrop 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page .tile-icon:nth-child(1),
+.page .square-tile:nth-child(1) .square-tile-icon {
+  animation-delay: 0.02s;
+}
+
+.page .tile-lg .tile-icon-img {
+  animation-delay: 0.05s;
+}
+
+.page .square-tile:nth-child(2) .square-tile-icon {
+  animation-delay: 0.1s;
+}
+
+.page .page-title-text,
+.page .brand-head,
+.page .tile-body,
+.page .stat-grid > div,
+.page .section-label,
+.page .user-chip > div:last-child {
+  animation: contentIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page .stat-grid > div:nth-child(1) { animation-delay: 0.02s; }
+.page .stat-grid > div:nth-child(2) { animation-delay: 0.04s; }
+.page .stat-grid > div:nth-child(3) { animation-delay: 0.06s; }
+.page .stat-grid > div:nth-child(4) { animation-delay: 0.08s; }
+.page .stat-grid > div:nth-child(5) { animation-delay: 0.1s; }
+.page .stat-grid > div:nth-child(6) { animation-delay: 0.12s; }
+.page .stat-grid > div:nth-child(7) { animation-delay: 0.14s; }
+.page .stat-grid > div:nth-child(8) { animation-delay: 0.16s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page .tile-icon-img,
+  .page .square-tile-icon,
+  .page .tile-icon,
+  .page .coin-logo,
+  .page .avatar,
+  .page .asset-pill-logo,
+  .page .logo-orb,
+  .page .page-title-text,
+  .page .brand-head,
+  .page .tile-body,
+  .page .stat-grid > div,
+  .page .section-label,
+  .page .user-chip > div:last-child {
+    animation: none;
+  }
 }
 
 .brand-head {
@@ -393,63 +474,53 @@ button {
 .profile-page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - 24px);
-  padding-bottom: 8px;
+  gap: 10px;
+  padding-bottom: 12px;
 }
 
-.profile-stats-fill {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: stretch;
-  margin-bottom: 12px;
-  min-height: 260px;
-}
-
-.profile-stats-fill .stat-grid {
-  flex: 1;
-  height: 100%;
-  align-content: space-between;
+.profile-stats {
+  margin: 0;
 }
 
 .profile-ref {
-  margin-top: auto;
+  margin-top: 0;
 }
 
-.user-chip-lg {
-  padding: 14px 16px;
-  gap: 14px;
-  margin-bottom: 12px;
+.user-chip-compact {
+  padding: 12px 14px;
+  gap: 12px;
+  margin-bottom: 0;
 }
 
-.user-name-lg {
-  font-size: 20px;
+.user-name-compact {
+  font-size: 17px;
   font-weight: 800;
 }
 
-.user-sub-lg {
-  font-size: 14px;
+.user-sub-compact {
+  font-size: 12px;
   color: var(--muted);
   margin-top: 2px;
 }
 
 .card-pad-lg {
-  padding: 18px;
+  padding: 14px;
 }
 
-.stat-grid-lg {
-  gap: 22px 18px;
+.stat-grid-compact {
+  gap: 10px 14px;
 }
 
-.stat-grid-lg .k {
+.stat-grid-compact .k {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stat-grid-compact .v {
   font-size: 15px;
-  font-weight: 700;
-}
-
-.stat-grid-lg .v {
-  font-size: 20px;
   font-weight: 800;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .ref-title {
@@ -918,8 +989,8 @@ button {
 }
 
 .asset-pill-logo {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -954,8 +1025,8 @@ button {
 }
 
 .asset-menu-item img {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 

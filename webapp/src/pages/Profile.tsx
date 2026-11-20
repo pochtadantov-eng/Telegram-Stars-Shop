@@ -15,7 +15,7 @@ export function Profile({ cfg, me, onBack }: Props) {
   const name = displayName(me);
 
   async function copy() {
-    haptic("select");
+    haptic();
     try {
       await navigator.clipboard.writeText(me.ref_link);
       setCopied(true);
@@ -34,16 +34,16 @@ export function Profile({ cfg, me, onBack }: Props) {
         brand={cfg.brand}
       />
 
-      <div className="glass user-chip user-chip-lg">
-        <Avatar name={name} photo={me.photo_url} size={64} />
+      <div className="glass user-chip user-chip-compact">
+        <Avatar name={name} photo={me.photo_url} size={48} />
         <div>
-          <strong className="user-name-lg">{name}</strong>
-          <div className="user-sub-lg">Ваш аккаунт</div>
+          <strong className="user-name-compact">{name}</strong>
+          <div className="user-sub-compact">Ваш аккаунт</div>
         </div>
       </div>
 
-      <div className="glass card-pad card-pad-lg profile-stats-fill">
-        <div className="stat-grid stat-grid-lg">
+      <div className="glass card-pad profile-stats">
+        <div className="stat-grid stat-grid-compact">
           <div>
             <div className="k">Telegram ID</div>
             <div className="v">{me.id}</div>
@@ -79,7 +79,7 @@ export function Profile({ cfg, me, onBack }: Props) {
         </div>
       </div>
 
-      <div className="glass card-pad card-pad-lg profile-ref">
+      <div className="glass card-pad profile-ref">
         <strong className="ref-title">Реферальная ссылка</strong>
         <p className="ref-desc">
           За каждого реферала с 1 успешным обменом — {money(cfg.ref_bonus)} ₽ на бонусный баланс.

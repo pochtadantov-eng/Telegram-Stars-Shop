@@ -22,8 +22,20 @@ type AssetChoice = {
 
 const ASSET_CHOICES: AssetChoice[] = [
   { id: "ton", asset: "TON", method: "ton", label: "TON", logo: "/icons/ton.svg" },
-  { id: "usdt-trc20", asset: "USDT", method: "trc20", label: "USDT (TRC20)", logo: "/icons/usdt.svg" },
-  { id: "usdt-ton", asset: "USDT", method: "ton", label: "USDT (TON)", logo: "/icons/usdt.svg" },
+  {
+    id: "usdt-trc20",
+    asset: "USDT",
+    method: "trc20",
+    label: "USDT (TRC20)",
+    logo: "/icons/usdt-trc20.svg",
+  },
+  {
+    id: "usdt-ton",
+    asset: "USDT",
+    method: "ton",
+    label: "USDT (TON)",
+    logo: "/icons/usdt-ton.svg",
+  },
 ];
 
 function choiceFrom(asset: "USDT" | "TON", method: string): AssetChoice {
@@ -57,16 +69,21 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
   const min = asset === "USDT" ? cfg.min_usdt : cfg.min_ton;
   const amountNum = parseFloat(amount.replace(",", ".")) || 0;
   const selected = choiceFrom(asset, method);
-  const pillLabel =
-    ASSET_CHOICES.some((c) => c.asset === asset && c.method === method)
-      ? selected.label
-      : asset === "TON"
-        ? "TON"
-        : method === "cryptobot"
-          ? "USDT (Crypto Bot)"
-          : method === "xrocket"
-            ? "USDT (xRocket)"
-            : selected.label;
+  const knownChoice = ASSET_CHOICES.find((c) => c.asset === asset && c.method === method);
+  const pillLabel = knownChoice
+    ? knownChoice.label
+    : asset === "TON"
+      ? "TON"
+      : method === "cryptobot"
+        ? "USDT (Crypto Bot)"
+        : method === "xrocket"
+          ? "USDT (xRocket)"
+          : selected.label;
+  const pillLogo = knownChoice
+    ? knownChoice.logo
+    : asset === "TON"
+      ? "/icons/ton.svg"
+      : "/icons/usdt.svg";
 
   const bonusNum = Math.min(
     parseFloat(bonus.replace(",", ".")) || 0,
@@ -183,7 +200,7 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
               }}
             >
               <span>{pillLabel}</span>
-              <img src={selected.logo} alt="" className="asset-pill-logo" />
+              <img src={pillLogo} alt="" className="asset-pill-logo" />
               <span className="asset-pill-caret">{pickerOpen ? "▴" : "▾"}</span>
             </button>
             {pickerOpen ? (
@@ -271,11 +288,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             onClick={() => {
               haptic("select");
               setMethod(m);
-              if (asset === "USDT" && (m === "trc20" || m === "ton")) {
-                /* keep asset */
-              } else if (asset === "TON" && m !== "ton") {
-                /* ton asset keeps ton methods */
-              }
             }}
           >
             {method === m ? "✓ " : ""}

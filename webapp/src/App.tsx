@@ -6,7 +6,7 @@ import {
   type Me,
   type Order,
 } from "./lib/api";
-import { initTelegram, tg, waitForInitData } from "./lib/telegram";
+import { haptic, initTelegram, tg, waitForInitData } from "./lib/telegram";
 import { PageHeader } from "./components/Shell";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
@@ -86,6 +86,7 @@ export default function App() {
   }, []);
 
   async function go(next: Page) {
+    haptic();
     setError("");
     if (next === "orders" && me) {
       const res = await api.orders();
@@ -122,9 +123,11 @@ export default function App() {
     }
     if (!cfg) return;
     if (kind === "support" && cfg.support_url) {
+      haptic();
       window.open(cfg.support_url, "_blank");
       return;
     }
+    haptic();
     const map: Record<string, string> = {
       info: `Обмен ${cfg.brand}: продайте USDT (TRC20/TON) или TON и получите рубли на СБП/карту.`,
       security: "Мы не храним seed-фразы. Перевод крипты — только по инструкции оператора.",

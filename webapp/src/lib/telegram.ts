@@ -21,12 +21,13 @@ export function initTelegram() {
   }
 }
 
+/** Одна спокойная вибрация: tap = лёгкий удар, select = тихий selection. */
 export function haptic(kind: "tap" | "select" = "tap") {
   const h = tg()?.HapticFeedback;
   if (!h) return;
   try {
     if (kind === "select") h.selectionChanged();
-    else h.impactOccurred("soft");
+    else h.impactOccurred("light");
   } catch {
     /* noop */
   }
