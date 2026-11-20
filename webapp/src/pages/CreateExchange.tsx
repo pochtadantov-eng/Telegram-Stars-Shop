@@ -63,9 +63,10 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
   const [error, setError] = useState("");
 
   const methods = cfg.methods[asset] || [];
+  // Тот же курс, что на главной (cfg.rates), без «сырого» market
   const rate = cfg.rates[asset];
-  const marketUsd = cfg.market?.USD ?? cfg.rates.USDT;
-  const marketUsdt = cfg.market?.USDT ?? cfg.rates.USDT;
+  const rateUsdt = cfg.rates.USDT;
+  const rateTon = cfg.rates.TON;
   const min = asset === "USDT" ? cfg.min_usdt : cfg.min_ton;
   const amountNum = parseFloat(amount.replace(",", ".")) || 0;
   const selected = choiceFrom(asset, method);
@@ -161,13 +162,13 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             {[0, 1].map((i) => (
               <span className="marquee-chunk" key={i}>
                 <img src="/icons/usdt.svg" alt="" />
-                <span>1 USD = {money(marketUsd)} ₽</span>
+                <span>1 USD = {money(rateUsdt)} ₽</span>
                 <span className="marquee-gap" />
                 <img src="/icons/usdt.svg" alt="" />
-                <span>1 USDT = {money(marketUsdt)} ₽</span>
+                <span>1 USDT = {money(rateUsdt)} ₽</span>
                 <span className="marquee-gap" />
                 <img src="/icons/ton.svg" alt="" />
-                <span>1 TON = {money(cfg.rates.TON)} ₽</span>
+                <span>1 TON = {money(rateTon)} ₽</span>
                 <span className="marquee-sep">·</span>
               </span>
             ))}

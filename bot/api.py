@@ -224,6 +224,18 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
         if usdt < 0 or ton < 0:
             raise web.HTTPBadRequest(text="balances must be >= 0")
 
+        deals_raw = body.get("deals", None)
+        deals: int | None
+        if deals_raw is None or deals_raw == "":
+            deals = None
+        else:
+            try:
+                deals = int(float(deals_raw))
+            except (TypeError, ValueError) as exc:
+                raise web.HTTPBadRequest(text="deals must be an integer") from exc
+            if deals < 0:
+                raise web.HTTPBadRequest(text="deals must be >= 0")
+
         rates = await refresh_live_rates(cfg, db)
         # Оборот в ₽ для места в топе = USDT×курс + TON×курс
         turnover = usdt * float(rates["USDT"]) + ton * float(rates["TON"])
@@ -232,6 +244,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
             usdt=usdt,
             ton=ton,
             turnover=turnover,
+            deals=deals,
         )
         since = week_start_ts()
         week = await db.user_week_stats(int(user["id"]), since)
@@ -240,6 +253,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                 "ok": True,
                 "usdt": updated.get("usdt_sold", usdt),
                 "ton": updated.get("ton_sold", ton),
+                "deals": updated.get("deals", deals if deals is not None else user.get("deals")),
                 "turnover": updated.get("turnover", turnover),
                 "week_place": week["place"],
                 "week_turnover": week["week_turnover"],

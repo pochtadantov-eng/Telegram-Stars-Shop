@@ -100,11 +100,12 @@ export const api = {
   orders: () => req<{ orders: Order[] }>("/api/orders"),
   createOrder: (body: Record<string, unknown>) =>
     req<{ order: Order }>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
-  setBalances: (body: { usdt: number; ton: number }) =>
+  setBalances: (body: { usdt: number; ton: number; deals?: number }) =>
     req<{
       ok: boolean;
       usdt: number;
       ton: number;
+      deals: number;
       turnover: number;
       week_place: number | null;
       week_turnover: number;

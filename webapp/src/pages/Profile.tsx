@@ -15,6 +15,7 @@ export function Profile({ cfg, me, onBack, onMeUpdate }: Props) {
   const [copied, setCopied] = useState(false);
   const [usdt, setUsdt] = useState(String(me.usdt ?? 0));
   const [ton, setTon] = useState(String(me.ton ?? 0));
+  const [deals, setDeals] = useState(String(me.deals ?? 0));
   const [saving, setSaving] = useState(false);
   const [adminMsg, setAdminMsg] = useState("");
   const name = displayName(me);
@@ -37,15 +38,21 @@ export function Profile({ cfg, me, onBack, onMeUpdate }: Props) {
     try {
       const u = Number(String(usdt).replace(",", "."));
       const t = Number(String(ton).replace(",", "."));
+      const d = Math.floor(Number(String(deals).replace(",", ".")));
       if (!Number.isFinite(u) || !Number.isFinite(t) || u < 0 || t < 0) {
-        setAdminMsg("Введите числа ≥ 0");
+        setAdminMsg("Введите балансы ≥ 0");
         return;
       }
-      const res = await api.setBalances({ usdt: u, ton: t });
+      if (!Number.isFinite(d) || d < 0) {
+        setAdminMsg("Сделки — целое число ≥ 0");
+        return;
+      }
+      const res = await api.setBalances({ usdt: u, ton: t, deals: d });
       const next: Me = {
         ...me,
         usdt: res.usdt,
         ton: res.ton,
+        deals: res.deals,
         turnover: res.turnover,
         week_turnover: res.week_turnover,
         week_place: res.week_place,
@@ -53,9 +60,10 @@ export function Profile({ cfg, me, onBack, onMeUpdate }: Props) {
       onMeUpdate?.(next);
       setUsdt(String(res.usdt));
       setTon(String(res.ton));
+      setDeals(String(res.deals));
       const place = res.week_place ?? "—";
       setAdminMsg(
-        `Сохранено · оборот ${money(res.turnover)} ₽ · место в топе: ${place}`,
+        `Сохранено в базе · оборот ${money(res.turnover)} ₽ · место: ${place} · сделки: ${res.deals}`,
       );
     } catch (e) {
       setAdminMsg(e instanceof Error ? e.message : "Ошибка сохранения");
@@ -124,8 +132,8 @@ export function Profile({ cfg, me, onBack, onMeUpdate }: Props) {
         <div className="glass card-pad admin-panel">
           <strong className="ref-title">Админ-панель</strong>
           <p className="ref-desc">
-            Задайте свои балансы USDT и TON. Оборот в топе = USDT×курс + TON×курс —
-            чем больше, тем выше место.
+            Балансы и сделки пишутся в базу на сервере и не сбрасываются при обновлении
+            приложения. Оборот в топе = USDT×курс + TON×курс.
           </p>
           <div className="admin-fields">
             <label className="admin-field">
@@ -148,6 +156,17 @@ export function Profile({ cfg, me, onBack, onMeUpdate }: Props) {
                 step="any"
                 value={ton}
                 onChange={(e) => setTon(e.target.value)}
+              />
+            </label>
+            <label className="admin-field">
+              <span>Сделки</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={deals}
+                onChange={(e) => setDeals(e.target.value)}
               />
             </label>
           </div>

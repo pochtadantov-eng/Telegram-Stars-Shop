@@ -317,22 +317,44 @@ class DB:
         usdt: float,
         ton: float,
         turnover: float,
+        deals: int | None = None,
     ) -> dict[str, Any]:
-        """Абсолютная установка балансов USDT/TON и оборота для топа."""
+        """Абсолютная установка балансов USDT/TON, оборота и (опц.) сделок."""
         now = time.time()
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
-            await db.execute(
-                """
-                UPDATE users SET
-                    usdt_sold=?,
-                    ton_sold=?,
-                    turnover=?,
-                    updated_at=?
-                WHERE id=?
-                """,
-                (max(0.0, usdt), max(0.0, ton), max(0.0, turnover), now, user_id),
-            )
+            if deals is None:
+                await db.execute(
+                    """
+                    UPDATE users SET
+                        usdt_sold=?,
+                        ton_sold=?,
+                        turnover=?,
+                        updated_at=?
+                    WHERE id=?
+                    """,
+                    (max(0.0, usdt), max(0.0, ton), max(0.0, turnover), now, user_id),
+                )
+            else:
+                await db.execute(
+                    """
+                    UPDATE users SET
+                        usdt_sold=?,
+                        ton_sold=?,
+                        turnover=?,
+                        deals=?,
+                        updated_at=?
+                    WHERE id=?
+                    """,
+                    (
+                        max(0.0, usdt),
+                        max(0.0, ton),
+                        max(0.0, turnover),
+                        max(0, int(deals)),
+                        now,
+                        user_id,
+                    ),
+                )
             await db.commit()
             cur = await db.execute("SELECT * FROM users WHERE id=?", (user_id,))
             row = await cur.fetchone()
