@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { AppConfig, Me } from "../lib/api";
 import { METHOD_LABELS, money } from "../lib/api";
 import { PageHeader } from "../components/Shell";
-import { BankIcon, CardIcon, PersonIcon, PhoneIcon, SwapIcon } from "../components/Icons";
+import { BankIcon, CardIcon, PersonIcon, PhoneIcon } from "../components/Icons";
 import { haptic } from "../lib/telegram";
 
 type Props = {
@@ -12,11 +12,34 @@ type Props = {
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
 };
 
+type AssetChoice = {
+  id: string;
+  asset: "USDT" | "TON";
+  method: string;
+  label: string;
+  logo: string;
+};
+
+const ASSET_CHOICES: AssetChoice[] = [
+  { id: "ton", asset: "TON", method: "ton", label: "TON", logo: "/icons/ton.svg" },
+  { id: "usdt-trc20", asset: "USDT", method: "trc20", label: "USDT (TRC20)", logo: "/icons/usdt.svg" },
+  { id: "usdt-ton", asset: "USDT", method: "ton", label: "USDT (TON)", logo: "/icons/usdt.svg" },
+];
+
+function choiceFrom(asset: "USDT" | "TON", method: string): AssetChoice {
+  return (
+    ASSET_CHOICES.find((c) => c.asset === asset && c.method === method) ||
+    ASSET_CHOICES.find((c) => c.asset === asset) ||
+    ASSET_CHOICES[1]
+  );
+}
+
 export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
   const [asset, setAsset] = useState<"USDT" | "TON">("USDT");
   const [amount, setAmount] = useState("");
   const [bonus, setBonus] = useState("");
-  const [method, setMethod] = useState(cfg.methods.USDT?.[0] || "trc20");
+  const [method, setMethod] = useState("trc20");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [phone, setPhone] = useState("");
   const [bank, setBank] = useState("");
   const [fullName, setFullName] = useState("");
@@ -33,20 +56,17 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
   const marketUsdt = cfg.market?.USDT ?? cfg.rates.USDT;
   const min = asset === "USDT" ? cfg.min_usdt : cfg.min_ton;
   const amountNum = parseFloat(amount.replace(",", ".")) || 0;
-
-  const assetLabel =
-    asset === "TON"
-      ? "TON"
-      : method === "trc20"
-        ? "USDT (TRC20)"
-        : method === "ton"
-          ? "USDT (TON)"
-          : method === "cryptobot"
-            ? "USDT (Crypto Bot)"
-            : method === "xrocket"
-              ? "USDT (xRocket)"
-              : "USDT";
-  const assetLogo = asset === "TON" ? "/icons/ton.svg" : "/icons/usdt.svg";
+  const selected = choiceFrom(asset, method);
+  const pillLabel =
+    ASSET_CHOICES.some((c) => c.asset === asset && c.method === method)
+      ? selected.label
+      : asset === "TON"
+        ? "TON"
+        : method === "cryptobot"
+          ? "USDT (Crypto Bot)"
+          : method === "xrocket"
+            ? "USDT (xRocket)"
+            : selected.label;
 
   const bonusNum = Math.min(
     parseFloat(bonus.replace(",", ".")) || 0,
@@ -65,11 +85,11 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
     );
   }, [amountNum, min, phone, bank, accept, me.cooldown_left, busy]);
 
-  function switchAsset(next: "USDT" | "TON") {
+  function applyChoice(choice: AssetChoice) {
     haptic("select");
-    setAsset(next);
-    const list = cfg.methods[next] || [];
-    setMethod(list[0] || "ton");
+    setAsset(choice.asset);
+    setMethod(choice.method);
+    setPickerOpen(false);
   }
 
   async function submit() {
@@ -110,7 +130,7 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
   }
 
   return (
-    <div className="page">
+    <div className="page create-page">
       <PageHeader
         title="Создать обмен"
         subtitle="Заполните данные заявки"
@@ -125,8 +145,10 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
               <span className="marquee-chunk" key={i}>
                 <img src="/icons/usdt.svg" alt="" />
                 <span>1 USD = {money(marketUsd)} ₽</span>
+                <span className="marquee-gap" />
                 <img src="/icons/usdt.svg" alt="" />
                 <span>1 USDT = {money(marketUsdt)} ₽</span>
+                <span className="marquee-gap" />
                 <img src="/icons/ton.svg" alt="" />
                 <span>1 TON = {money(cfg.rates.TON)} ₽</span>
                 <span className="marquee-sep">·</span>
@@ -139,9 +161,11 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
       <div className="glass exchange-card give">
         <div className="row-top">
           <span>Вы отдаёте</span>
-          <span>Минимум от {min} {asset}</span>
+          <span>
+            Минимум от {min} {asset}
+          </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="give-row">
           <input
             className="amount-input"
             inputMode="decimal"
@@ -149,26 +173,43 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, ""))}
           />
-          <button
-            type="button"
-            className="asset-pill"
-            onClick={() => switchAsset(asset === "USDT" ? "TON" : "USDT")}
-          >
-            <span>{assetLabel}</span>
-            <img src={assetLogo} alt="" className="asset-pill-logo" />
-            <span className="asset-pill-caret">▾</span>
-          </button>
+          <div className="asset-picker-wrap">
+            <button
+              type="button"
+              className="asset-pill"
+              onClick={() => {
+                haptic("select");
+                setPickerOpen((v) => !v);
+              }}
+            >
+              <span>{pillLabel}</span>
+              <img src={selected.logo} alt="" className="asset-pill-logo" />
+              <span className="asset-pill-caret">{pickerOpen ? "▴" : "▾"}</span>
+            </button>
+            {pickerOpen ? (
+              <div className="asset-menu" role="listbox">
+                {ASSET_CHOICES.map((c) => {
+                  const active = asset === c.asset && method === c.method;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`asset-menu-item ${active ? "active" : ""}`}
+                      onClick={() => applyChoice(c)}
+                    >
+                      <img src={c.logo} alt="" />
+                      <span>{c.label}</span>
+                      {active ? <em>✓</em> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <button
-        type="button"
-        className="swap-btn"
-        aria-label="Сменить актив"
-        onClick={() => switchAsset(asset === "USDT" ? "TON" : "USDT")}
-      >
-        <SwapIcon />
-      </button>
+      <div className="exchange-gap" aria-hidden />
 
       <div className="glass exchange-card get get-soft">
         <div className="row-top">
@@ -230,6 +271,11 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             onClick={() => {
               haptic("select");
               setMethod(m);
+              if (asset === "USDT" && (m === "trc20" || m === "ton")) {
+                /* keep asset */
+              } else if (asset === "TON" && m !== "ton") {
+                /* ton asset keeps ton methods */
+              }
             }}
           >
             {method === m ? "✓ " : ""}
@@ -353,6 +399,15 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
       <div className="hint">
         Следующую заявку можно создать через {Math.round(cfg.order_cooldown_sec / 60)} минут.
       </div>
+
+      {pickerOpen ? (
+        <button
+          type="button"
+          className="asset-menu-backdrop"
+          aria-label="Закрыть"
+          onClick={() => setPickerOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
