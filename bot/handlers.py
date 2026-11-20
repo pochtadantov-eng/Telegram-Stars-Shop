@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from aiogram import Bot, F, Router
-from aiogram.filters import Command, CommandObject, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -14,6 +16,55 @@ from .api import format_order_admin
 from .config import Config
 from .db import DB
 from .rates import get_rates, set_rate
+
+
+class CancelOrder(StatesGroup):
+    reason = State()
+
+
+STATUS_RU = {
+    "pending": "ожидает",
+    "accepted": "в работе",
+    "done": "успешно закрыта",
+    "rejected": "отклонена",
+    "cancelled": "отменена",
+}
+
+
+def kb_pending(order_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Принять",
+                    callback_data=f"ord:accept:{order_id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌ Отклонить",
+                    callback_data=f"ord:reject:{order_id}",
+                ),
+            ]
+        ]
+    )
+
+
+def kb_accepted(order_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💚 Закрыть успешно",
+                    callback_data=f"ord:done:{order_id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🚫 Отменить",
+                    callback_data=f"ord:cancel:{order_id}",
+                ),
+            ],
+        ]
+    )
 
 
 def build(cfg: Config, db: DB) -> Router:
@@ -53,11 +104,16 @@ def build(cfg: Config, db: DB) -> Router:
         rates = await get_rates(cfg, db)
         text = (
             f"<b>{cfg.brand_title}</b>\n"
-            f"Продайте USDT или TON быстро и безопасно.\n\n"
+            f"Продайте USDT или TON — заявка уйдёт оператору вручную.\n\n"
             f"Курс: 1 USDT = <b>{rates['USDT']:.2f} ₽</b>\n"
             f"Курс: 1 TON = <b>{rates['TON']:.2f} ₽</b>\n\n"
             f"Сети: USDT TRC20 / TON · нативная TON"
         )
+        if is_admin(message.from_user.id):
+            text += (
+                "\n\n<b>Админ:</b> новые заявки приходят сюда.\n"
+                "Команды: /orders · /rate"
+            )
         kb = open_kb()
         if kb:
             await message.answer(text, reply_markup=kb)
@@ -102,25 +158,16 @@ def build(cfg: Config, db: DB) -> Router:
     async def orders_cmd(message: Message) -> None:
         if not is_admin(message.from_user.id):
             return
-        pending = await db.list_pending()
-        if not pending:
-            await message.answer("Нет ожидающих заявок.")
+        open_orders = await db.list_open()
+        if not open_orders:
+            await message.answer("Нет открытых заявок.")
             return
-        for order in pending[:20]:
+        for order in open_orders[:20]:
             user = await db.get_user(order["user_id"]) or {"id": order["user_id"]}
-            kb = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="✅ Выплачено",
-                            callback_data=f"ord:done:{order['id']}",
-                        ),
-                        InlineKeyboardButton(
-                            text="❌ Отклонить",
-                            callback_data=f"ord:rej:{order['id']}",
-                        ),
-                    ]
-                ]
+            kb = (
+                kb_pending(order["id"])
+                if order["status"] == "pending"
+                else kb_accepted(order["id"])
             )
             await message.answer(
                 format_order_admin(order, user),
@@ -128,59 +175,138 @@ def build(cfg: Config, db: DB) -> Router:
             )
 
     @router.callback_query(F.data.startswith("ord:"))
-    async def order_action(cq: CallbackQuery, bot: Bot) -> None:
+    async def order_action(
+        cq: CallbackQuery, bot: Bot, state: FSMContext
+    ) -> None:
         if not is_admin(cq.from_user.id):
             await cq.answer("Нет доступа", show_alert=True)
             return
-        _, action, oid = cq.data.split(":")
+        parts = cq.data.split(":")
+        if len(parts) != 3:
+            await cq.answer("Неверные данные")
+            return
+        _, action, oid = parts
         order_id = int(oid)
-        status = "done" if action == "done" else "rejected"
+        before = await db.get_order(order_id)
+        if not before:
+            await cq.answer("Не найдено")
+            return
+
+        if action == "cancel":
+            if before["status"] != "accepted":
+                await cq.answer("Сначала примите заявку", show_alert=True)
+                return
+            await state.set_state(CancelOrder.reason)
+            await state.update_data(cancel_order_id=order_id)
+            await cq.message.answer(
+                f"Причина отмены заявки #{order_id}?\n"
+                "Напишите одним сообщением (увидит клиент)."
+            )
+            await cq.answer()
+            return
+
+        status_map = {
+            "accept": "accepted",
+            "reject": "rejected",
+            "done": "done",
+        }
+        status = status_map.get(action)
+        if not status:
+            await cq.answer("Неизвестное действие")
+            return
+
         order = await db.set_order_status(
             order_id, status, ref_bonus=cfg.ref_bonus
         )
         if not order:
             await cq.answer("Не найдено")
             return
-        if order["status"] != status and order["status"] != "pending":
-            # already processed earlier path returns current
-            pass
-        label = "выплачена" if status == "done" else "отклонена"
-        await cq.message.edit_text(cq.message.html_text + f"\n\n<b>→ {label}</b>")
+        if order["status"] != status:
+            await cq.answer(
+                f"Сейчас статус: {STATUS_RU.get(order['status'], order['status'])}",
+                show_alert=True,
+            )
+            return
+
+        user = await db.get_user(order["user_id"]) or {"id": order["user_id"]}
+        body = format_order_admin(order, user)
+        if status == "accepted":
+            await cq.message.edit_text(
+                body + "\n\n<b>→ принята, в работе</b>",
+                reply_markup=kb_accepted(order_id),
+            )
+            try:
+                await bot.send_message(
+                    order["user_id"],
+                    f"✅ Заявка #{order['id']} принята оператором.\n"
+                    "Ожидайте инструкции по переводу крипты.",
+                )
+            except Exception:
+                pass
+        elif status == "done":
+            await cq.message.edit_text(body + "\n\n<b>→ успешно закрыта</b>")
+            try:
+                await bot.send_message(
+                    order["user_id"],
+                    f"💚 Заявка #{order['id']} успешно закрыта.\n"
+                    f"Выплата: <b>{order['payout']:.2f} ₽</b>",
+                )
+            except Exception:
+                pass
+        elif status == "rejected":
+            await cq.message.edit_text(body + "\n\n<b>→ отклонена</b>")
+            try:
+                await bot.send_message(
+                    order["user_id"],
+                    f"❌ Заявка #{order['id']} отклонена.\n"
+                    "Бонусы (если списывались) возвращены на баланс.",
+                )
+            except Exception:
+                pass
+        await cq.answer("Готово")
+
+    @router.message(StateFilter(CancelOrder.reason))
+    async def cancel_reason(message: Message, state: FSMContext, bot: Bot) -> None:
+        if not is_admin(message.from_user.id):
+            return
+        data = await state.get_data()
+        order_id = data.get("cancel_order_id")
+        await state.clear()
+        if not order_id:
+            await message.answer("Нет заявки для отмены.")
+            return
+        reason = (message.text or "").strip() or "без указания причины"
+        order = await db.set_order_status(
+            int(order_id),
+            "cancelled",
+            cancel_reason=reason,
+        )
+        if not order or order["status"] != "cancelled":
+            await message.answer("Не удалось отменить (уже закрыта?).")
+            return
+        await message.answer(
+            f"Заявка #{order['id']} отменена.\nПричина: {reason}"
+        )
         try:
-            if status == "done":
-                await bot.send_message(
-                    order["user_id"],
-                    f"✅ Заявка #{order['id']} выплачена.\n"
-                    f"Сумма: <b>{order['payout']:.2f} ₽</b>",
-                )
-            else:
-                await bot.send_message(
-                    order["user_id"],
-                    f"❌ Заявка #{order['id']} отклонена. Бонусы возвращены на баланс.",
-                )
+            await bot.send_message(
+                order["user_id"],
+                f"🚫 Заявка #{order['id']} отменена.\n"
+                f"Причина: {reason}\n"
+                "Бонусы (если списывались) возвращены на баланс.",
+            )
         except Exception:
             pass
-        await cq.answer("Готово")
 
     return router
 
 
 async def notify_admins(bot: Bot, cfg: Config, order: dict, user: dict) -> None:
     text = format_order_admin(order, user)
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ Выплачено",
-                    callback_data=f"ord:done:{order['id']}",
-                ),
-                InlineKeyboardButton(
-                    text="❌ Отклонить",
-                    callback_data=f"ord:rej:{order['id']}",
-                ),
-            ]
-        ]
+    text += (
+        "\n\n<i>Ручной обмен: свяжитесь с клиентом, примите перевод крипты, "
+        "выплатите на СБП/карту.</i>"
     )
+    kb = kb_pending(order["id"])
     for admin_id in cfg.admin_ids:
         try:
             await bot.send_message(admin_id, text, reply_markup=kb)

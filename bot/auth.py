@@ -4,7 +4,23 @@ import hashlib
 import hmac
 import json
 import time
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, unquote
+
+from aiohttp import web
+
+
+def extract_init_data(request: web.Request) -> str:
+    """Достаём initData из Authorization / заголовка / query (без порчи спецсимволов)."""
+    auth = request.headers.get("Authorization", "")
+    if auth.lower().startswith("tma "):
+        return auth[4:].strip()
+    header = request.headers.get("X-Telegram-Init-Data", "")
+    if header:
+        return header
+    q = request.rel_url.query.get("initData") or request.rel_url.query.get("tgWebAppData")
+    if q:
+        return unquote(q)
+    return ""
 
 
 def validate_init_data(init_data: str, bot_token: str, max_age: int = 86400) -> dict | None:

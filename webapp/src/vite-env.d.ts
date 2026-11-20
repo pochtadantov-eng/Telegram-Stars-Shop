@@ -17,6 +17,10 @@ interface TelegramWebApp {
   ready: () => void;
   expand: () => void;
   close: () => void;
+  isExpanded?: boolean;
+  isVerticalSwipesEnabled?: boolean;
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
   HapticFeedback?: {
     impactOccurred: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
     selectionChanged: () => void;

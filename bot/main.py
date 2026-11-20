@@ -15,6 +15,16 @@ from . import config
 from .api import create_app
 from .db import DB
 from .handlers import build, notify_admins
+from .rates import REFRESH_SEC, refresh_live_rates
+
+
+async def rates_loop(cfg, db) -> None:
+    while True:
+        try:
+            await refresh_live_rates(cfg, db, force=True)
+        except Exception:
+            logging.exception("rates_loop failed")
+        await asyncio.sleep(REFRESH_SEC)
 
 
 async def main() -> None:
@@ -27,6 +37,11 @@ async def main() -> None:
 
     db = DB(cfg.db_path)
     await db.init()
+    try:
+        await refresh_live_rates(cfg, db, force=True)
+    except Exception:
+        logging.exception("initial rates refresh failed")
+    asyncio.create_task(rates_loop(cfg, db))
 
     bot = Bot(
         cfg.token,
@@ -47,7 +62,14 @@ async def main() -> None:
     async def _notify(order, user):
         await notify_admins(bot, cfg, order, user)
 
+    async def _notify_user(user_id: int, text: str):
+        try:
+            await bot.send_message(user_id, text)
+        except Exception:
+            logging.exception("notify_user failed for %s", user_id)
+
     app["notify_order"] = _notify
+    app["notify_user"] = _notify_user
 
     runner = web.AppRunner(app)
     await runner.setup()
@@ -71,6 +93,14 @@ async def main() -> None:
 
     try:
         await dp.start_polling(bot)
+    except Exception:
+        logging.exception(
+            "Polling упал (часто неверный BOT_TOKEN на хостинге). "
+            "HTTP/Mini App продолжают работать — поправьте токен и Redeploy."
+        )
+        # держим процесс живым, чтобы Render не рестартил в цикле
+        while True:
+            await asyncio.sleep(3600)
     finally:
         await runner.cleanup()
         await bot.session.close()

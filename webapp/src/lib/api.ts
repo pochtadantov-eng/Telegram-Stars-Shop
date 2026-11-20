@@ -4,6 +4,7 @@ export type AppConfig = {
   brand: string;
   brand_title: string;
   rates: { USDT: number; TON: number };
+  market?: { USD: number; USDT: number; TON: number };
   min_usdt: number;
   min_ton: number;
   ref_bonus: number;
@@ -36,6 +37,7 @@ export type Me = {
   week_place: number | null;
   ref_link: string;
   cooldown_left: number;
+  is_admin?: boolean;
 };
 
 export type Order = {
@@ -65,8 +67,12 @@ export type LeaderItem = {
 function headers(): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };
   const initData = tg()?.initData;
-  if (initData) h["X-Telegram-Init-Data"] = initData;
-  else if (import.meta.env.DEV) h["X-Dev-User"] = "1001";
+  if (initData) {
+    // Официальный способ — не ломает спецсимволы initData в HTTP-заголовках
+    h.Authorization = `tma ${initData}`;
+  } else if (import.meta.env.DEV) {
+    h["X-Dev-User"] = "1001";
+  }
   return h;
 }
 
@@ -83,16 +89,28 @@ export const api = {
   config: () => req<AppConfig>("/api/config"),
   me: () => req<Me>("/api/me"),
   rates: () => req<{ rates: AppConfig["rates"]; week_ends_in: number }>("/api/rates"),
-  leaderboard: () =>
+  leaderboard: (period: "day" | "week" | "month" = "week") =>
     req<{
       items: LeaderItem[];
       me: { place: number | null; turnover: number };
       week_ends_in: number;
+      period: string;
       prizes: number[];
-    }>("/api/leaderboard"),
+    }>(`/api/leaderboard?period=${period}`),
   orders: () => req<{ orders: Order[] }>("/api/orders"),
   createOrder: (body: Record<string, unknown>) =>
     req<{ order: Order }>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
+  setBalances: (body: { usdt: number; ton: number; deals?: number }) =>
+    req<{
+      ok: boolean;
+      usdt: number;
+      ton: number;
+      deals: number;
+      turnover: number;
+      week_place: number | null;
+      week_turnover: number;
+      rates: AppConfig["rates"];
+    }>("/api/admin/balances", { method: "POST", body: JSON.stringify(body) }),
 };
 
 export function money(v: number) {
@@ -118,7 +136,9 @@ export const METHOD_LABELS: Record<string, string> = {
 };
 
 export const STATUS_LABELS: Record<string, string> = {
-  pending: "В обработке",
-  done: "Выплачено",
+  pending: "Ожидает оператора",
+  accepted: "В работе",
+  done: "Успешно",
   rejected: "Отклонено",
+  cancelled: "Отменено",
 };

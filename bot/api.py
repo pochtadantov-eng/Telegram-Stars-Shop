@@ -6,10 +6,17 @@ from typing import Any
 
 from aiohttp import web
 
-from .auth import parse_start_param, validate_init_data
+from .auth import extract_init_data, parse_start_param, validate_init_data
 from .config import Config
 from .db import DB
-from .rates import get_rates, week_ends_in, week_start_ts
+from .rates import (
+    get_rates,
+    period_ends_in,
+    period_start_ts,
+    refresh_live_rates,
+    week_ends_in,
+    week_start_ts,
+)
 
 ASSETS = ("USDT", "TON")
 METHODS = {
@@ -29,20 +36,34 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
     app["bot_username"] = bot_username or ""
 
     async def user_from_request(request: web.Request) -> dict[str, Any]:
-        init_data = request.headers.get("X-Telegram-Init-Data", "")
-        user = validate_init_data(init_data, cfg.token)
-        if not user:
-            # Dev fallback when Mini App opened outside Telegram
+        init_data = extract_init_data(request)
+        if not init_data:
             if request.headers.get("X-Dev-User"):
                 try:
                     uid = int(request.headers["X-Dev-User"])
                 except ValueError as exc:
                     raise web.HTTPUnauthorized(text="invalid user") from exc
                 user = {"id": uid, "username": "dev", "first_name": "Dev"}
-            else:
-                raise web.HTTPUnauthorized(text="invalid initData")
+                return await db.upsert_user(
+                    user_id=uid,
+                    username="dev",
+                    first_name="Dev",
+                    last_name=None,
+                    photo_url=None,
+                    referrer_id=None,
+                )
+            raise web.HTTPUnauthorized(
+                text="no initData — откройте Mini App из Telegram-бота"
+            )
 
-        start = parse_start_param(init_data) if init_data else None
+        user = validate_init_data(init_data, cfg.token)
+        if not user:
+            raise web.HTTPUnauthorized(
+                text="invalid initData — проверьте BOT_TOKEN на Render "
+                "(должен быть токен именно этого бота, без пробелов)"
+            )
+
+        start = parse_start_param(init_data)
         referrer_id = None
         if start and start.startswith("r"):
             raw = start[1:]
@@ -58,14 +79,32 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
             referrer_id=referrer_id,
         )
 
+    async def api_health(_: web.Request) -> web.Response:
+        token_ok = bool(cfg.token) and ":" in cfg.token and " " not in cfg.token
+        return web.json_response(
+            {
+                "ok": True,
+                "bot_username": app["bot_username"],
+                "token_configured": token_ok,
+                "webapp_url": cfg.webapp_url or None,
+            }
+        )
+
     async def api_config(_: web.Request) -> web.Response:
-        rates = await get_rates(cfg, db)
+        rates = await refresh_live_rates(cfg, db)
         totals = await db.totals()
+        usdt_m = await db.get_setting("usdt_market")
+        ton_m = await db.get_setting("ton_market")
         return web.json_response(
             {
                 "brand": cfg.brand,
                 "brand_title": cfg.brand_title,
                 "rates": rates,
+                "market": {
+                    "USD": float(usdt_m) if usdt_m else rates["USDT"],
+                    "USDT": float(usdt_m) if usdt_m else rates["USDT"],
+                    "TON": float(ton_m) if ton_m else rates["TON"],
+                },
                 "min_usdt": cfg.min_usdt,
                 "min_ton": cfg.min_ton,
                 "ref_bonus": cfg.ref_bonus,
@@ -80,9 +119,9 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                 "totals": totals,
                 "bot_username": app["bot_username"],
                 "terms": (
-                    "Обмен производится вручную оператором. После создания заявки "
-                    "переведите криптовалюту указанным способом. Выплата на СБП/карту "
-                    "в рублях по зафиксированному курсу. Заявки обрабатываются в порядке очереди."
+                    "Обмен ручной: после создания заявки она уходит оператору. "
+                    "Оператор примет заявку, сообщит куда перевести крипту, "
+                    "затем выплатит рубли на СБП/карту по курсу из заявки."
                 ),
             }
         )
@@ -116,11 +155,12 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                 "week_place": week["place"],
                 "ref_link": ref_link,
                 "cooldown_left": cooldown_left,
+                "is_admin": int(user["id"]) in cfg.admin_ids,
             }
         )
 
     async def api_rates(_: web.Request) -> web.Response:
-        rates = await get_rates(cfg, db)
+        rates = await refresh_live_rates(cfg, db)
         return web.json_response(
             {
                 "rates": rates,
@@ -130,12 +170,19 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
 
     async def api_leaderboard(request: web.Request) -> web.Response:
         user = await user_from_request(request)
-        since = week_start_ts()
+        period = str(request.rel_url.query.get("period") or "week").lower()
+        if period not in ("day", "week", "month"):
+            period = "week"
+        since = period_start_ts(period)
         board = await db.leaderboard(since, limit=50)
         me = await db.user_week_stats(user["id"], since)
         items = []
         for i, row in enumerate(board, start=1):
-            prize = cfg.weekly_prizes[i - 1] if i - 1 < len(cfg.weekly_prizes) else 0
+            prize = (
+                cfg.weekly_prizes[i - 1]
+                if period == "week" and i - 1 < len(cfg.weekly_prizes)
+                else 0
+            )
             items.append(
                 {
                     "place": i,
@@ -154,8 +201,63 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                     "place": me["place"],
                     "turnover": me["week_turnover"],
                 },
-                "week_ends_in": week_ends_in(),
-                "prizes": cfg.weekly_prizes,
+                "period": period,
+                "week_ends_in": period_ends_in(period),
+                "prizes": cfg.weekly_prizes if period == "week" else [],
+            }
+        )
+
+    async def api_admin_balances(request: web.Request) -> web.Response:
+        user = await user_from_request(request)
+        if int(user["id"]) not in cfg.admin_ids:
+            raise web.HTTPForbidden(text="admin only")
+        try:
+            body = await request.json()
+        except Exception as exc:
+            raise web.HTTPBadRequest(text="invalid json") from exc
+
+        try:
+            usdt = float(body.get("usdt", user.get("usdt_sold") or 0))
+            ton = float(body.get("ton", user.get("ton_sold") or 0))
+        except (TypeError, ValueError) as exc:
+            raise web.HTTPBadRequest(text="usdt/ton must be numbers") from exc
+        if usdt < 0 or ton < 0:
+            raise web.HTTPBadRequest(text="balances must be >= 0")
+
+        deals_raw = body.get("deals", None)
+        deals: int | None
+        if deals_raw is None or deals_raw == "":
+            deals = None
+        else:
+            try:
+                deals = int(float(deals_raw))
+            except (TypeError, ValueError) as exc:
+                raise web.HTTPBadRequest(text="deals must be an integer") from exc
+            if deals < 0:
+                raise web.HTTPBadRequest(text="deals must be >= 0")
+
+        rates = await refresh_live_rates(cfg, db)
+        # Оборот в ₽ для места в топе = USDT×курс + TON×курс
+        turnover = usdt * float(rates["USDT"]) + ton * float(rates["TON"])
+        updated = await db.set_user_balances(
+            int(user["id"]),
+            usdt=usdt,
+            ton=ton,
+            turnover=turnover,
+            deals=deals,
+        )
+        since = week_start_ts()
+        week = await db.user_week_stats(int(user["id"]), since)
+        return web.json_response(
+            {
+                "ok": True,
+                "usdt": updated.get("usdt_sold", usdt),
+                "ton": updated.get("ton_sold", ton),
+                "deals": updated.get("deals", deals if deals is not None else user.get("deals")),
+                "turnover": updated.get("turnover", turnover),
+                "week_place": week["place"],
+                "week_turnover": week["week_turnover"],
+                "rates": rates,
             }
         )
 
@@ -209,7 +311,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
         if bonus_used > float(user["bonus_balance"]):
             raise web.HTTPBadRequest(text="not enough bonus")
 
-        rates = await get_rates(cfg, db)
+        rates = await refresh_live_rates(cfg, db)
         rate = rates[asset]
         payout = round(amount * rate + bonus_used, 2)
 
@@ -230,17 +332,27 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
             }
         )
 
-        # notify admins via bot if available
+        # заявка уходит админу в этого же бота; клиенту — подтверждение
         notify = app.get("notify_order")
         if notify:
             await notify(order, user)
+        notify_user = app.get("notify_user")
+        if notify_user:
+            await notify_user(
+                user["id"],
+                f"📨 Заявка #{order['id']} создана и отправлена оператору.\n"
+                f"{order['amount']} {order['asset']} → {_money(order['payout'])} ₽\n"
+                "Ожидайте принятия.",
+            )
 
         return web.json_response({"order": order})
 
+    app.router.add_get("/api/health", api_health)
     app.router.add_get("/api/config", api_config)
     app.router.add_get("/api/me", api_me)
     app.router.add_get("/api/rates", api_rates)
     app.router.add_get("/api/leaderboard", api_leaderboard)
+    app.router.add_post("/api/admin/balances", api_admin_balances)
     app.router.add_get("/api/orders", api_orders)
     app.router.add_post("/api/orders", api_create_order)
 
@@ -270,11 +382,30 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
 
 
 def format_order_admin(order: dict[str, Any], user: dict[str, Any]) -> str:
-    uname = f"@{user['username']}" if user.get("username") else user.get("first_name") or user["id"]
+    uname = (
+        f"@{user['username']}"
+        if user.get("username")
+        else user.get("first_name") or user["id"]
+    )
+    status = order.get("status", "pending")
+    status_ru = {
+        "pending": "ожидает",
+        "accepted": "в работе",
+        "done": "успешно",
+        "rejected": "отклонена",
+        "cancelled": "отменена",
+    }.get(status, status)
+    method = order["method"]
+    method_ru = {
+        "cryptobot": "Crypto Bot чеком",
+        "trc20": "TRC20",
+        "ton": "TON",
+        "xrocket": "xRocket чеком",
+    }.get(method, method)
     lines = [
-        f"🆕 Заявка #{order['id']}",
+        f"🆕 Заявка #{order['id']} · <b>{status_ru}</b>",
         f"Клиент: {uname} (<code>{user['id']}</code>)",
-        f"Отдаёт: <b>{order['amount']} {order['asset']}</b> ({order['method']})",
+        f"Отдаёт: <b>{order['amount']} {order['asset']}</b> ({method_ru})",
         f"Курс: {_money(order['rate'])} ₽",
         f"К выплате: <b>{_money(order['payout'])} ₽</b>",
         f"Бонус: {_money(order['bonus_used'])} ₽",
@@ -287,4 +418,6 @@ def format_order_admin(order: dict[str, Any], user: dict[str, Any]) -> str:
         lines.append(f"Карта: <code>{order['card_number']}</code>")
     if order.get("want_pdf"):
         lines.append("PDF-чек: да")
+    if order.get("cancel_reason"):
+        lines.append(f"Причина отмены: {order['cancel_reason']}")
     return "\n".join(lines)

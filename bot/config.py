@@ -42,9 +42,6 @@ class Config:
     delay_compensation: float
     order_cooldown_sec: int
     order_sla_sec: int
-    wallet_usdt_trc20: str
-    wallet_usdt_ton: str
-    wallet_ton: str
     support_url: str
     weekly_prizes: list[float] = field(default_factory=list)
     db_path: str = "data/exchange.db"
@@ -57,9 +54,17 @@ class Config:
 
 def load() -> Config:
     load_dotenv()
-    token = os.getenv("BOT_TOKEN", "").strip()
+    # Render/мобильный ввод часто портит секреты (пробелы, кавычки, переносы)
+    token = (os.getenv("BOT_TOKEN") or "").strip()
+    token = token.strip("\"'").replace(" ", "").replace("\n", "").replace("\r", "")
+    token = token.replace("\u00a0", "").replace("\u200b", "")
     if not token:
         raise SystemExit("BOT_TOKEN is required")
+    if ":" not in token or not token.split(":", 1)[0].isdigit():
+        raise SystemExit(
+            "BOT_TOKEN выглядит неверно. Нужен вид 123456:AA…. "
+            "Проверьте Environment на хостинге (без пробелов и кавычек)."
+        )
     return Config(
         token=token,
         admin_ids=_ids(os.getenv("ADMIN_IDS", "")),
@@ -73,9 +78,6 @@ def load() -> Config:
         delay_compensation=float(os.getenv("DELAY_COMPENSATION_RUB", "50")),
         order_cooldown_sec=int(os.getenv("ORDER_COOLDOWN_SEC", "900")),
         order_sla_sec=int(os.getenv("ORDER_SLA_SEC", "900")),
-        wallet_usdt_trc20=os.getenv("WALLET_USDT_TRC20", "").strip(),
-        wallet_usdt_ton=os.getenv("WALLET_USDT_TON", "").strip(),
-        wallet_ton=os.getenv("WALLET_TON", "").strip(),
         support_url=os.getenv("SUPPORT_URL", "https://t.me/").strip(),
         weekly_prizes=_prizes(os.getenv("WEEKLY_PRIZES", "3000,2000,1000")),
         db_path=os.getenv("DB_PATH", "data/exchange.db"),
