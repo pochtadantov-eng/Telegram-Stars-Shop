@@ -801,6 +801,49 @@ button {
   background: rgba(120, 190, 255, 0.08);
 }
 
+.leader-me {
+  outline: 1px solid rgba(140, 200, 255, 0.35);
+  outline-offset: -1px;
+  border-radius: 10px;
+}
+
+.admin-panel {
+  margin-top: 12px;
+}
+
+.admin-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.admin-field input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.admin-msg {
+  margin-top: 10px;
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.35;
+}
+
 .leader-amt .amt-bump {
   animation: amtBump 0.7s ease;
 }

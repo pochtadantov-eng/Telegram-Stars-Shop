@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { AppConfig, Me } from "../lib/api";
-import { displayName, money } from "../lib/api";
+import { api, type AppConfig, type Me, money } from "../lib/api";
+import { displayName } from "../lib/api";
 import { Avatar, PageHeader } from "../components/Shell";
 import { haptic } from "../lib/telegram";
 
@@ -8,10 +8,15 @@ type Props = {
   cfg: AppConfig;
   me: Me;
   onBack: () => void;
+  onMeUpdate?: (me: Me) => void;
 };
 
-export function Profile({ cfg, me, onBack }: Props) {
+export function Profile({ cfg, me, onBack, onMeUpdate }: Props) {
   const [copied, setCopied] = useState(false);
+  const [usdt, setUsdt] = useState(String(me.usdt ?? 0));
+  const [ton, setTon] = useState(String(me.ton ?? 0));
+  const [saving, setSaving] = useState(false);
+  const [adminMsg, setAdminMsg] = useState("");
   const name = displayName(me);
 
   async function copy() {
@@ -22,6 +27,40 @@ export function Profile({ cfg, me, onBack }: Props) {
       setTimeout(() => setCopied(false), 1500);
     } catch {
       /* ignore */
+    }
+  }
+
+  async function saveBalances() {
+    haptic();
+    setSaving(true);
+    setAdminMsg("");
+    try {
+      const u = Number(String(usdt).replace(",", "."));
+      const t = Number(String(ton).replace(",", "."));
+      if (!Number.isFinite(u) || !Number.isFinite(t) || u < 0 || t < 0) {
+        setAdminMsg("Введите числа ≥ 0");
+        return;
+      }
+      const res = await api.setBalances({ usdt: u, ton: t });
+      const next: Me = {
+        ...me,
+        usdt: res.usdt,
+        ton: res.ton,
+        turnover: res.turnover,
+        week_turnover: res.week_turnover,
+        week_place: res.week_place,
+      };
+      onMeUpdate?.(next);
+      setUsdt(String(res.usdt));
+      setTon(String(res.ton));
+      const place = res.week_place ?? "—";
+      setAdminMsg(
+        `Сохранено · оборот ${money(res.turnover)} ₽ · место в топе: ${place}`,
+      );
+    } catch (e) {
+      setAdminMsg(e instanceof Error ? e.message : "Ошибка сохранения");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -38,7 +77,9 @@ export function Profile({ cfg, me, onBack }: Props) {
         <Avatar name={name} photo={me.photo_url} size={48} />
         <div>
           <strong className="user-name-compact">{name}</strong>
-          <div className="user-sub-compact">Ваш аккаунт</div>
+          <div className="user-sub-compact">
+            {me.is_admin ? "Админ" : "Ваш аккаунт"}
+          </div>
         </div>
       </div>
 
@@ -78,6 +119,49 @@ export function Profile({ cfg, me, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {me.is_admin ? (
+        <div className="glass card-pad admin-panel">
+          <strong className="ref-title">Админ-панель</strong>
+          <p className="ref-desc">
+            Задайте свои балансы USDT и TON. Оборот в топе = USDT×курс + TON×курс —
+            чем больше, тем выше место.
+          </p>
+          <div className="admin-fields">
+            <label className="admin-field">
+              <span>USDT</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="any"
+                value={usdt}
+                onChange={(e) => setUsdt(e.target.value)}
+              />
+            </label>
+            <label className="admin-field">
+              <span>TON</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="any"
+                value={ton}
+                onChange={(e) => setTon(e.target.value)}
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            className="btn-solid"
+            disabled={saving}
+            onClick={() => void saveBalances()}
+          >
+            {saving ? "Сохранение…" : "Сохранить балансы"}
+          </button>
+          {adminMsg ? <div className="admin-msg">{adminMsg}</div> : null}
+        </div>
+      ) : null}
 
       <div className="glass card-pad profile-ref">
         <strong className="ref-title">Реферальная ссылка</strong>

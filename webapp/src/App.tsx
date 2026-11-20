@@ -160,7 +160,12 @@ export default function App() {
         />
       )}
       {page === "profile" && (
-        <Profile cfg={cfg} me={me} onBack={() => setPage("home")} />
+        <Profile
+          cfg={cfg}
+          me={me}
+          onBack={() => setPage("home")}
+          onMeUpdate={(next) => setMe(next)}
+        />
       )}
       {page === "top" && (
         <Top

@@ -155,6 +155,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                 "week_place": week["place"],
                 "ref_link": ref_link,
                 "cooldown_left": cooldown_left,
+                "is_admin": int(user["id"]) in cfg.admin_ids,
             }
         )
 
@@ -203,6 +204,46 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                 "period": period,
                 "week_ends_in": period_ends_in(period),
                 "prizes": cfg.weekly_prizes if period == "week" else [],
+            }
+        )
+
+    async def api_admin_balances(request: web.Request) -> web.Response:
+        user = await user_from_request(request)
+        if int(user["id"]) not in cfg.admin_ids:
+            raise web.HTTPForbidden(text="admin only")
+        try:
+            body = await request.json()
+        except Exception as exc:
+            raise web.HTTPBadRequest(text="invalid json") from exc
+
+        try:
+            usdt = float(body.get("usdt", user.get("usdt_sold") or 0))
+            ton = float(body.get("ton", user.get("ton_sold") or 0))
+        except (TypeError, ValueError) as exc:
+            raise web.HTTPBadRequest(text="usdt/ton must be numbers") from exc
+        if usdt < 0 or ton < 0:
+            raise web.HTTPBadRequest(text="balances must be >= 0")
+
+        rates = await refresh_live_rates(cfg, db)
+        # Оборот в ₽ для места в топе = USDT×курс + TON×курс
+        turnover = usdt * float(rates["USDT"]) + ton * float(rates["TON"])
+        updated = await db.set_user_balances(
+            int(user["id"]),
+            usdt=usdt,
+            ton=ton,
+            turnover=turnover,
+        )
+        since = week_start_ts()
+        week = await db.user_week_stats(int(user["id"]), since)
+        return web.json_response(
+            {
+                "ok": True,
+                "usdt": updated.get("usdt_sold", usdt),
+                "ton": updated.get("ton_sold", ton),
+                "turnover": updated.get("turnover", turnover),
+                "week_place": week["place"],
+                "week_turnover": week["week_turnover"],
+                "rates": rates,
             }
         )
 
@@ -297,6 +338,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
     app.router.add_get("/api/me", api_me)
     app.router.add_get("/api/rates", api_rates)
     app.router.add_get("/api/leaderboard", api_leaderboard)
+    app.router.add_post("/api/admin/balances", api_admin_balances)
     app.router.add_get("/api/orders", api_orders)
     app.router.add_post("/api/orders", api_create_order)
 

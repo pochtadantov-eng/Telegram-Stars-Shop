@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppConfig, LeaderItem, Me } from "../lib/api";
 import { displayName, formatCountdown, money } from "../lib/api";
 import { leadersForPeriod, nextTickDelay, resetMarket, tickMarket } from "../lib/demoLeaders";
@@ -32,8 +32,42 @@ const CROWN: Record<number, string> = {
   3: "/icons/crown-3.svg",
 };
 
+function prizeFor(place: number, period: Period, weekly: number[]) {
+  if (period !== "week" || place < 1 || place > weekly.length) return 0;
+  return weekly[place - 1] || 0;
+}
+
+/** Вставляем себя в шкалу по обороту (админ-баланс → место). */
+function mergeMe(board: LeaderItem[], me: Me, period: Period, prizes: number[]): LeaderItem[] {
+  const score = Math.max(me.turnover || 0, me.week_turnover || 0);
+  if (score <= 0) {
+    return board.map((r, i) => ({
+      ...r,
+      place: i + 1,
+      prize: prizeFor(i + 1, period, prizes),
+    }));
+  }
+  const rest = board.filter((r) => r.id !== me.id);
+  const self: LeaderItem = {
+    place: 0,
+    id: me.id,
+    username: me.username,
+    first_name: me.first_name,
+    photo_url: me.photo_url,
+    turnover: score,
+    prize: 0,
+  };
+  const sorted = [...rest, self].sort((a, b) => b.turnover - a.turnover);
+  return sorted.slice(0, 15).map((r, i) => ({
+    ...r,
+    place: i + 1,
+    prize: prizeFor(i + 1, period, prizes),
+  }));
+}
+
 export function Top({
   cfg,
+  me,
   items,
   myPlace,
   myTurnover,
@@ -43,28 +77,24 @@ export function Top({
   onBack,
   onOpenInfo,
 }: Props) {
-  const useDemo = items.length === 0;
-  const [board, setBoard] = useState<LeaderItem[]>(() =>
-    useDemo ? leadersForPeriod(period) : items,
-  );
+  // Пока живых участников мало — держим демо-шкалу и поверх кладём реальных + себя
+  const sparse = items.length < 5;
+  const [demoBoard, setDemoBoard] = useState<LeaderItem[]>(() => leadersForPeriod(period));
   const [flashIds, setFlashIds] = useState<number[]>([]);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!useDemo) {
-      setBoard(items);
-      return;
-    }
-    setBoard(leadersForPeriod(period));
-  }, [useDemo, items, period]);
+    if (!sparse) return;
+    setDemoBoard(leadersForPeriod(period));
+  }, [sparse, period]);
 
   useEffect(() => {
-    if (!useDemo) return;
+    if (!sparse) return;
 
     const schedule = () => {
       timerRef.current = window.setTimeout(() => {
         const { board: next, dealtIds } = tickMarket(period);
-        setBoard(next);
+        setDemoBoard(next);
         if (dealtIds.length) {
           setFlashIds(dealtIds);
           window.setTimeout(() => setFlashIds([]), 1600);
@@ -77,7 +107,23 @@ export function Top({
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
-  }, [useDemo, period]);
+  }, [sparse, period]);
+
+  const board = useMemo(() => {
+    const base = sparse
+      ? (() => {
+          const map = new Map<number, LeaderItem>();
+          for (const r of demoBoard) map.set(r.id, r);
+          for (const r of items) map.set(r.id, r);
+          return [...map.values()].sort((a, b) => b.turnover - a.turnover);
+        })()
+      : items;
+    return mergeMe(base, me, period, cfg.weekly_prizes || []);
+  }, [sparse, demoBoard, items, me, period, cfg.weekly_prizes]);
+
+  const selfRow = board.find((r) => r.id === me.id);
+  const shownPlace = selfRow?.place ?? myPlace;
+  const shownTurnover = selfRow?.turnover ?? myTurnover;
 
   return (
     <div className="page">
@@ -97,8 +143,8 @@ export function Top({
             onClick={() => {
               haptic("select");
               onPeriod(p.id);
-              if (useDemo) {
-                setBoard(resetMarket(p.id));
+              if (sparse) {
+                setDemoBoard(resetMarket(p.id));
                 setFlashIds([]);
               }
             }}
@@ -111,11 +157,12 @@ export function Top({
       <div className="glass leader-list">
         {board.map((item) => {
           const flashed = flashIds.includes(item.id);
+          const isMe = item.id === me.id;
           return (
             <div
               className={`leader-row ${item.place <= 3 ? `top-${item.place}` : ""} ${
                 flashed ? "leader-deal" : ""
-              }`}
+              } ${isMe ? "leader-me" : ""}`}
               key={item.id}
             >
               <div className={`place ${item.place <= 3 ? `p${item.place}` : ""}`}>
@@ -144,7 +191,7 @@ export function Top({
       </div>
 
       <div className="glass me-bar">
-        Вы на <b>{myPlace ?? "—"} месте</b> · оборот <b>{money(myTurnover)} ₽</b>
+        Вы на <b>{shownPlace ?? "—"} месте</b> · оборот <b>{money(shownTurnover)} ₽</b>
       </div>
 
       <div className="glass guarantee">

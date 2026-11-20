@@ -37,6 +37,7 @@ export type Me = {
   week_place: number | null;
   ref_link: string;
   cooldown_left: number;
+  is_admin?: boolean;
 };
 
 export type Order = {
@@ -99,6 +100,16 @@ export const api = {
   orders: () => req<{ orders: Order[] }>("/api/orders"),
   createOrder: (body: Record<string, unknown>) =>
     req<{ order: Order }>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
+  setBalances: (body: { usdt: number; ton: number }) =>
+    req<{
+      ok: boolean;
+      usdt: number;
+      ton: number;
+      turnover: number;
+      week_place: number | null;
+      week_turnover: number;
+      rates: AppConfig["rates"];
+    }>("/api/admin/balances", { method: "POST", body: JSON.stringify(body) }),
 };
 
 export function money(v: number) {
