@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AppConfig, LeaderItem, Me } from "../lib/api";
 import { displayName, formatCountdown, money } from "../lib/api";
-import { leadersForPeriod, liveBoard } from "../lib/demoLeaders";
+import { leadersForPeriod, nextTickDelay, resetMarket, tickMarket } from "../lib/demoLeaders";
 import { Avatar, PageHeader } from "../components/Shell";
 import { haptic } from "../lib/telegram";
 
@@ -44,27 +44,40 @@ export function Top({
   onOpenInfo,
 }: Props) {
   const useDemo = items.length === 0;
-  const [tick, setTick] = useState(0);
   const [board, setBoard] = useState<LeaderItem[]>(() =>
     useDemo ? leadersForPeriod(period) : items,
   );
+  const [flashIds, setFlashIds] = useState<number[]>([]);
+  const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!useDemo) {
       setBoard(items);
       return;
     }
-    setBoard(liveBoard(period, tick));
-  }, [useDemo, items, period, tick]);
+    setBoard(leadersForPeriod(period));
+  }, [useDemo, items, period]);
 
   useEffect(() => {
     if (!useDemo) return;
-    // «живая» шкала: раз в ~7с кто-то выходит/заходит, суммы чуть меняются
-    const id = window.setInterval(() => {
-      setTick((t) => t + 1);
-    }, 7000);
-    return () => window.clearInterval(id);
-  }, [useDemo]);
+
+    const schedule = () => {
+      timerRef.current = window.setTimeout(() => {
+        const { board: next, dealtIds } = tickMarket(period);
+        setBoard(next);
+        if (dealtIds.length) {
+          setFlashIds(dealtIds);
+          window.setTimeout(() => setFlashIds([]), 1600);
+        }
+        schedule();
+      }, nextTickDelay());
+    };
+
+    schedule();
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [useDemo, period]);
 
   return (
     <div className="page">
@@ -84,7 +97,10 @@ export function Top({
             onClick={() => {
               haptic("select");
               onPeriod(p.id);
-              setTick(0);
+              if (useDemo) {
+                setBoard(resetMarket(p.id));
+                setFlashIds([]);
+              }
             }}
           >
             {p.label}
@@ -93,33 +109,38 @@ export function Top({
       </div>
 
       <div className="glass leader-list">
-        {board.map((item) => (
-          <div
-            className={`leader-row leader-row-live ${item.place <= 3 ? `top-${item.place}` : ""}`}
-            key={item.id}
-          >
-            <div className={`place ${item.place <= 3 ? `p${item.place}` : ""}`}>
-              {CROWN[item.place] ? (
-                <img className="place-crown" src={CROWN[item.place]} alt={`${item.place}`} />
-              ) : (
-                item.place
-              )}
+        {board.map((item) => {
+          const flashed = flashIds.includes(item.id);
+          return (
+            <div
+              className={`leader-row ${item.place <= 3 ? `top-${item.place}` : ""} ${
+                flashed ? "leader-deal" : ""
+              }`}
+              key={item.id}
+            >
+              <div className={`place ${item.place <= 3 ? `p${item.place}` : ""}`}>
+                {CROWN[item.place] ? (
+                  <img className="place-crown" src={CROWN[item.place]} alt={`${item.place}`} />
+                ) : (
+                  item.place
+                )}
+              </div>
+              <Avatar name={displayName(item)} photo={item.photo_url} size={40} />
+              <div className="leader-name">
+                <div className="leader-nick">{displayName(item)}</div>
+                {item.place <= 3 ? (
+                  <div className="leader-rank-label">
+                    {item.place === 1 ? "Топ 1" : item.place === 2 ? "Топ 2" : "Топ 3"}
+                  </div>
+                ) : null}
+              </div>
+              <div className="leader-amt">
+                <div className={`t ${flashed ? "amt-bump" : ""}`}>{money(item.turnover)} ₽</div>
+                {item.prize > 0 ? <div className="p">приз {money(item.prize)} ₽</div> : null}
+              </div>
             </div>
-            <Avatar name={displayName(item)} photo={item.photo_url} size={40} />
-            <div className="leader-name">
-              <div className="leader-nick">{displayName(item)}</div>
-              {item.place <= 3 ? (
-                <div className="leader-rank-label">
-                  {item.place === 1 ? "Топ 1" : item.place === 2 ? "Топ 2" : "Топ 3"}
-                </div>
-              ) : null}
-            </div>
-            <div className="leader-amt">
-              <div className="t">{money(item.turnover)} ₽</div>
-              {item.prize > 0 ? <div className="p">приз {money(item.prize)} ₽</div> : null}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="glass me-bar">
