@@ -13,6 +13,12 @@ export function initTelegram() {
   } catch {
     /* older clients */
   }
+  // Не давать жесту «потянуть вниз» закрывать Mini App при скролле внутри.
+  try {
+    app.disableVerticalSwipes?.();
+  } catch {
+    /* Bot API < 7.7 */
+  }
 }
 
 export function haptic(kind: "tap" | "select" = "tap") {
