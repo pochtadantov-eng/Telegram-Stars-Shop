@@ -27,7 +27,6 @@ export function Profile({ cfg, me, onBack }: Props) {
 
   return (
     <div className="page profile-page">
-      <BrandStrip title={cfg.brand_title} />
       <PageHeader
         title="Профиль"
         subtitle="Ваша статистика и данные"
@@ -93,14 +92,5 @@ export function Profile({ cfg, me, onBack }: Props) {
         </div>
       </div>
     </div>
-  );
-}
-
-function BrandStrip({ title }: { title: string }) {
-  return (
-    <header className="brand-head">
-      <h1>{title}</h1>
-      <p>мини-приложение</p>
-    </header>
   );
 }

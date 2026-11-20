@@ -40,11 +40,12 @@ export function DraggableLogo({ brand }: { brand: string }) {
     if (!drag.current?.active) return;
     const dx = e.clientX - drag.current.startX;
     const dy = e.clientY - drag.current.startY;
-    // лёгкое ограничение «чуть тянуть»
-    const clamp = (v: number) => Math.max(-28, Math.min(28, v));
+    // только запад→север (влево и вверх), чтобы не тянуть Mini App вниз
+    const clampX = (v: number) => Math.max(-32, Math.min(0, v));
+    const clampY = (v: number) => Math.max(-32, Math.min(0, v));
     setOffset({
-      x: clamp(drag.current.ox + dx),
-      y: clamp(drag.current.oy + dy),
+      x: clampX(drag.current.ox + dx),
+      y: clampY(drag.current.oy + dy),
     });
   }
 
@@ -89,10 +90,10 @@ export function PageHeader({
   brand: string;
 }) {
   return (
-    <div className="page-title-row">
+    <div className="page-title-row page-title-row-inner">
       <button
         type="button"
-        className="back-btn"
+        className="back-btn back-btn-lg"
         aria-label="Назад"
         onClick={() => {
           haptic();
@@ -101,7 +102,7 @@ export function PageHeader({
       >
         <BackArrow />
       </button>
-      <div>
+      <div className="page-title-text">
         <h2>{title}</h2>
         {subtitle ? <p>{subtitle}</p> : null}
       </div>

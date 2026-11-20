@@ -7,6 +7,7 @@ import {
   type Order,
 } from "./lib/api";
 import { initTelegram, tg, waitForInitData } from "./lib/telegram";
+import { PageHeader } from "./components/Shell";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
 import { Top, type Period } from "./pages/Top";
@@ -185,21 +186,14 @@ export default function App() {
       )}
       {page === "info" && (
         <div className="page">
-          <header className="brand-head">
-            <h1>{cfg.brand_title}</h1>
-            <p>мини-приложение</p>
-          </header>
+          <PageHeader
+            title="Инфо"
+            onBack={() => setPage("home")}
+            brand={cfg.brand}
+          />
           <div className="glass card-pad" style={{ lineHeight: 1.5 }}>
             {infoText}
           </div>
-          <button
-            type="button"
-            className="btn-primary"
-            style={{ width: "100%", marginTop: 14 }}
-            onClick={() => setPage("home")}
-          >
-            Назад
-          </button>
           {tg()?.initData ? null : (
             <div className="hint">Dev-режим: откройте через Telegram для полной авторизации</div>
           )}

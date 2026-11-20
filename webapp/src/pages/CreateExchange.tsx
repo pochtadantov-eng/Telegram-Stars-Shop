@@ -94,10 +94,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
 
   return (
     <div className="page">
-      <header className="brand-head">
-        <h1>{cfg.brand_title}</h1>
-        <p>мини-приложение</p>
-      </header>
       <PageHeader
         title="Создать обмен"
         subtitle="Заполните данные заявки"

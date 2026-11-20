@@ -11,10 +11,6 @@ type Props = {
 export function Orders({ cfg, orders, onBack }: Props) {
   return (
     <div className="page">
-      <header className="brand-head">
-        <h1>{cfg.brand_title}</h1>
-        <p>мини-приложение</p>
-      </header>
       <PageHeader
         title="Мои заявки"
         subtitle="Статус обменов"

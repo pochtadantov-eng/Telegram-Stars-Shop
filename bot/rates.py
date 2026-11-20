@@ -17,44 +17,76 @@ MARKUP_MIN = 13.0
 MARKUP_MAX = 17.0
 
 
-async def fetch_market_rates() -> dict[str, float] | None:
-    """Живые курсы USDT/TON к рублю (CoinGecko → запасной Binance)."""
+async def _cbr_usd_rub(session: aiohttp.ClientSession) -> float | None:
     try:
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=12)
-        ) as session:
+        async with session.get("https://www.cbr-xml-daily.ru/daily_json.js") as resp:
+            if resp.status != 200:
+                return None
+            data = await resp.json(content_type=None)
+            return float(data["Valute"]["USD"]["Value"])
+    except Exception:
+        log.exception("CBR USD failed")
+        return None
+
+
+async def _ton_usd(session: aiohttp.ClientSession) -> float | None:
+    # Kraken TON/USD
+    try:
+        async with session.get(
+            "https://api.kraken.com/0/public/Ticker?pair=TONUSD"
+        ) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                result = data.get("result") or {}
+                for key, val in result.items():
+                    if key.startswith("TON") and "c" in val:
+                        return float(val["c"][0])
+    except Exception:
+        log.exception("Kraken TON failed")
+
+    # CoinGecko fallback (id может меняться)
+    for coin_id in ("ton-cryptocurrency", "toncoin", "the-open-network"):
+        try:
             url = (
                 "https://api.coingecko.com/api/v3/simple/price"
-                "?ids=tether,the-open-network&vs_currencies=rub"
+                f"?ids={coin_id}&vs_currencies=usd"
             )
             async with session.get(url) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    usdt = float(data["tether"]["rub"])
-                    ton = float(data["the-open-network"]["rub"])
-                    if usdt > 0 and ton > 0:
-                        return {"USDT": usdt, "TON": ton}
-    except Exception:
-        log.exception("CoinGecko rates failed")
+                if resp.status != 200:
+                    continue
+                data = await resp.json()
+                if coin_id in data and "usd" in data[coin_id]:
+                    price = float(data[coin_id]["usd"])
+                    if price > 0:
+                        return price
+        except Exception:
+            continue
+    return None
 
-    # запасной путь: TONUSDT * USDTRUB (если есть) или USDT*курс доллара через Binance
+
+async def fetch_market_rates() -> dict[str, float] | None:
+    """Живые курсы: USD/RUB (ЦБ) + TON/USD (Kraken) → рубли."""
     try:
         async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=12)
+            timeout=aiohttp.ClientTimeout(total=15)
         ) as session:
-            async with session.get(
-                "https://api.binance.com/api/v3/ticker/price?symbol=USDTRUB"
-            ) as r1:
-                usdt = float((await r1.json())["price"]) if r1.status == 200 else 0
-            async with session.get(
-                "https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT"
-            ) as r2:
-                ton_usdt = float((await r2.json())["price"]) if r2.status == 200 else 0
-            if usdt > 0 and ton_usdt > 0:
-                return {"USDT": usdt, "TON": ton_usdt * usdt}
+            usd_rub = await _cbr_usd_rub(session)
+            ton_usd = await _ton_usd(session)
+            if not usd_rub or usd_rub <= 0:
+                return None
+            usdt = usd_rub  # USDT ≈ USD
+            if ton_usd and ton_usd > 0:
+                ton = ton_usd * usd_rub
+            else:
+                # без TON — хотя бы USDT
+                ton = None
+            out = {"USDT": usdt}
+            if ton:
+                out["TON"] = ton
+            return out if "TON" in out else None
     except Exception:
-        log.exception("Binance rates failed")
-    return None
+        log.exception("fetch_market_rates failed")
+        return None
 
 
 async def refresh_live_rates(cfg: Config, db: DB, *, force: bool = False) -> dict[str, float]:
@@ -108,14 +140,13 @@ def _msk_now(now: float | None = None) -> datetime:
 
 
 def period_start_ts(period: str, now: float | None = None) -> float:
-    """period: day | week | month"""
     dt = _msk_now(now)
     p = (period or "week").lower()
     if p == "day":
         start = dt.replace(hour=0, minute=0, second=0, microsecond=0)
     elif p == "month":
         start = dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    else:  # week — с понедельника
+    else:
         start = dt - timedelta(days=dt.weekday())
         start = start.replace(hour=0, minute=0, second=0, microsecond=0)
     return start.timestamp()
@@ -128,12 +159,18 @@ def period_ends_in(period: str, now: float | None = None) -> int:
         end = (dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     elif p == "month":
         if dt.month == 12:
-            end = dt.replace(year=dt.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = dt.replace(
+                year=dt.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
         else:
-            end = dt.replace(month=dt.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = dt.replace(
+                month=dt.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
     else:
         monday = dt - timedelta(days=dt.weekday())
-        end = (monday + timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = (monday + timedelta(days=7)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
     return max(0, int(end.timestamp() - dt.timestamp()))
 
 
