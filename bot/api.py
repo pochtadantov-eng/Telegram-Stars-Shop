@@ -9,7 +9,14 @@ from aiohttp import web
 from .auth import extract_init_data, parse_start_param, validate_init_data
 from .config import Config
 from .db import DB
-from .rates import get_rates, week_ends_in, week_start_ts
+from .rates import (
+    get_rates,
+    period_ends_in,
+    period_start_ts,
+    refresh_live_rates,
+    week_ends_in,
+    week_start_ts,
+)
 
 ASSETS = ("USDT", "TON")
 METHODS = {
@@ -84,7 +91,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
         )
 
     async def api_config(_: web.Request) -> web.Response:
-        rates = await get_rates(cfg, db)
+        rates = await refresh_live_rates(cfg, db)
         totals = await db.totals()
         return web.json_response(
             {
@@ -145,7 +152,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
         )
 
     async def api_rates(_: web.Request) -> web.Response:
-        rates = await get_rates(cfg, db)
+        rates = await refresh_live_rates(cfg, db)
         return web.json_response(
             {
                 "rates": rates,
@@ -155,12 +162,19 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
 
     async def api_leaderboard(request: web.Request) -> web.Response:
         user = await user_from_request(request)
-        since = week_start_ts()
+        period = str(request.rel_url.query.get("period") or "week").lower()
+        if period not in ("day", "week", "month"):
+            period = "week"
+        since = period_start_ts(period)
         board = await db.leaderboard(since, limit=50)
         me = await db.user_week_stats(user["id"], since)
         items = []
         for i, row in enumerate(board, start=1):
-            prize = cfg.weekly_prizes[i - 1] if i - 1 < len(cfg.weekly_prizes) else 0
+            prize = (
+                cfg.weekly_prizes[i - 1]
+                if period == "week" and i - 1 < len(cfg.weekly_prizes)
+                else 0
+            )
             items.append(
                 {
                     "place": i,
@@ -179,8 +193,9 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
                     "place": me["place"],
                     "turnover": me["week_turnover"],
                 },
-                "week_ends_in": week_ends_in(),
-                "prizes": cfg.weekly_prizes,
+                "period": period,
+                "week_ends_in": period_ends_in(period),
+                "prizes": cfg.weekly_prizes if period == "week" else [],
             }
         )
 
@@ -234,7 +249,7 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
         if bonus_used > float(user["bonus_balance"]):
             raise web.HTTPBadRequest(text="not enough bonus")
 
-        rates = await get_rates(cfg, db)
+        rates = await refresh_live_rates(cfg, db)
         rate = rates[asset]
         payout = round(amount * rate + bonus_used, 2)
 

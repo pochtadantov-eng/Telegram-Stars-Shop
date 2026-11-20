@@ -1,8 +1,10 @@
 import type { AppConfig, LeaderItem, Me } from "../lib/api";
 import { displayName, formatCountdown, money } from "../lib/api";
 import { Avatar, PageHeader } from "../components/Shell";
-import { playClick } from "../lib/sound";
+import { playClick, unlockSound } from "../lib/sound";
 import { haptic } from "../lib/telegram";
+
+export type Period = "day" | "week" | "month";
 
 type Props = {
   cfg: AppConfig;
@@ -11,17 +13,26 @@ type Props = {
   myPlace: number | null;
   myTurnover: number;
   weekEndsIn: number;
+  period: Period;
+  onPeriod: (p: Period) => void;
   onBack: () => void;
   onOpenInfo: (kind: string) => void;
 };
 
+const PERIODS: { id: Period; label: string }[] = [
+  { id: "day", label: "День" },
+  { id: "week", label: "Неделя" },
+  { id: "month", label: "Месяц" },
+];
+
 export function Top({
   cfg,
-  me,
   items,
   myPlace,
   myTurnover,
   weekEndsIn,
+  period,
+  onPeriod,
   onBack,
   onOpenInfo,
 }: Props) {
@@ -38,49 +49,27 @@ export function Top({
         brand={cfg.brand}
       />
 
-      <div className="grid-2" style={{ marginBottom: 10 }}>
-        <button
-          type="button"
-          className="glass tile"
-          onClick={() => {
-            playClick();
-            haptic();
-            onOpenInfo("profile");
-          }}
-        >
-          <div className="tile-body">
-            <strong>Профиль</strong>
-            <span>Ваш аккаунт</span>
-          </div>
-          <span className="chev">›</span>
-        </button>
-        <button
-          type="button"
-          className="glass tile"
-          onClick={() => {
-            playClick();
-            haptic();
-            onOpenInfo("orders");
-          }}
-        >
-          <div className="tile-body">
-            <strong>Мои заявки</strong>
-            <span>Статус обменов</span>
-          </div>
-          <span className="chev">›</span>
-        </button>
-      </div>
-
-      <div className="glass tile" style={{ marginBottom: 10 }}>
-        <div className="tile-body">
-          <strong>Оборот недели 💰</strong>
-          <span>До конца: {formatCountdown(weekEndsIn)}</span>
-        </div>
+      <div className="period-tabs">
+        {PERIODS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`period-tab ${period === p.id ? "active" : ""}`}
+            onClick={() => {
+              unlockSound();
+              playClick();
+              haptic("select");
+              onPeriod(p.id);
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       <div className="glass leader-list">
         {items.length === 0 ? (
-          <div className="empty">Пока нет участников недели</div>
+          <div className="empty">Пока нет участников за этот период</div>
         ) : (
           items.map((item) => (
             <div className="leader-row" key={item.id}>
@@ -125,6 +114,7 @@ export function Top({
               key={kind}
               type="button"
               onClick={() => {
+                unlockSound();
                 playClick();
                 haptic();
                 onOpenInfo(kind);

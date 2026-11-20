@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BackArrow, Chevron } from "./Icons";
 import { haptic } from "../lib/telegram";
-import { playClick } from "../lib/sound";
+import { playClick, unlockSound } from "../lib/sound";
 
 export function BrandHead({ title }: { title: string }) {
   return (
@@ -30,6 +30,7 @@ export function PageHeader({
         className="back-btn"
         aria-label="Назад"
         onClick={() => {
+          unlockSound();
           playClick();
           haptic();
           onBack();
@@ -46,24 +47,31 @@ export function PageHeader({
   );
 }
 
+export function TileIcon({ src, alt = "" }: { src: string; alt?: string }) {
+  return <img className="tile-icon-img" src={src} alt={alt} draggable={false} />;
+}
+
 export function Tile({
   icon,
   title,
   subtitle,
   onClick,
   children,
+  large,
 }: {
   icon: ReactNode;
   title: string;
   subtitle?: string;
   onClick?: () => void;
   children?: ReactNode;
+  large?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="glass tile"
+      className={`glass tile ${large ? "tile-lg" : ""}`}
       onClick={() => {
+        unlockSound();
         playClick();
         haptic();
         onClick?.();
@@ -85,13 +93,15 @@ export function Tile({
 export function Avatar({
   name,
   photo,
+  size = 40,
 }: {
   name: string;
   photo?: string | null;
+  size?: number;
 }) {
   const letter = (name.replace("@", "")[0] || "?").toUpperCase();
   return (
-    <div className="avatar">
+    <div className="avatar" style={{ width: size, height: size, fontSize: size * 0.35 }}>
       {photo ? <img src={photo} alt="" /> : letter}
     </div>
   );

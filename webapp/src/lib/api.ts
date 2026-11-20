@@ -87,13 +87,14 @@ export const api = {
   config: () => req<AppConfig>("/api/config"),
   me: () => req<Me>("/api/me"),
   rates: () => req<{ rates: AppConfig["rates"]; week_ends_in: number }>("/api/rates"),
-  leaderboard: () =>
+  leaderboard: (period: "day" | "week" | "month" = "week") =>
     req<{
       items: LeaderItem[];
       me: { place: number | null; turnover: number };
       week_ends_in: number;
+      period: string;
       prizes: number[];
-    }>("/api/leaderboard"),
+    }>(`/api/leaderboard?period=${period}`),
   orders: () => req<{ orders: Order[] }>("/api/orders"),
   createOrder: (body: Record<string, unknown>) =>
     req<{ order: Order }>("/api/orders", { method: "POST", body: JSON.stringify(body) }),

@@ -151,11 +151,16 @@ button {
 .tile {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 14px 14px;
+  padding: 16px 16px;
   text-align: left;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.tile-lg {
+  padding: 20px 18px;
+  min-height: 88px;
 }
 
 .tile:active {
@@ -164,15 +169,29 @@ button {
 }
 
 .tile-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   background: radial-gradient(circle at 35% 30%, #5eb2ff, #1a6fe0 60%, #0d4db0);
   box-shadow: 0 0 18px var(--blue-glow);
   flex-shrink: 0;
   font-size: 18px;
+  overflow: hidden;
+}
+
+.tile-lg .tile-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+}
+
+.tile-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .tile-body {
@@ -182,14 +201,18 @@ button {
 
 .tile-body strong {
   display: block;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
+}
+
+.tile-lg .tile-body strong {
+  font-size: 18px;
 }
 
 .tile-body span {
   display: block;
-  margin-top: 2px;
-  font-size: 12px;
+  margin-top: 3px;
+  font-size: 13px;
   color: var(--muted);
 }
 
@@ -215,12 +238,61 @@ button {
 .home-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+
+.home-stack-lg {
+  gap: 14px;
 }
 
 .mini-stat {
   padding: 12px;
   min-height: 78px;
+}
+
+.mini-stat-lg {
+  min-height: 110px;
+  padding: 14px;
+}
+
+.profile-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trunc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.rates-lg {
+  font-size: 13px;
+  gap: 4px;
+}
+
+.period-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.period-tab {
+  padding: 12px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(10, 24, 55, 0.55);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.period-tab.active {
+  background: linear-gradient(180deg, rgba(50, 130, 255, 0.55), rgba(20, 80, 200, 0.55));
+  border-color: rgba(160, 210, 255, 0.55);
 }
 
 .mini-stat .label {

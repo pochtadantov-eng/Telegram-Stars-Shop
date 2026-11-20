@@ -15,6 +15,16 @@ from . import config
 from .api import create_app
 from .db import DB
 from .handlers import build, notify_admins
+from .rates import REFRESH_SEC, refresh_live_rates
+
+
+async def rates_loop(cfg, db) -> None:
+    while True:
+        try:
+            await refresh_live_rates(cfg, db, force=True)
+        except Exception:
+            logging.exception("rates_loop failed")
+        await asyncio.sleep(REFRESH_SEC)
 
 
 async def main() -> None:
@@ -27,6 +37,11 @@ async def main() -> None:
 
     db = DB(cfg.db_path)
     await db.init()
+    try:
+        await refresh_live_rates(cfg, db, force=True)
+    except Exception:
+        logging.exception("initial rates refresh failed")
+    asyncio.create_task(rates_loop(cfg, db))
 
     bot = Bot(
         cfg.token,

@@ -6,10 +6,11 @@ import {
   type Me,
   type Order,
 } from "./lib/api";
+import { unlockSound } from "./lib/sound";
 import { initTelegram, tg, waitForInitData } from "./lib/telegram";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
-import { Top } from "./pages/Top";
+import { Top, type Period } from "./pages/Top";
 import { Orders } from "./pages/Orders";
 import { CreateExchange } from "./pages/CreateExchange";
 
@@ -24,6 +25,7 @@ export default function App() {
   const [weekEndsIn, setWeekEndsIn] = useState(0);
   const [myPlace, setMyPlace] = useState<number | null>(null);
   const [myWeekTurnover, setMyWeekTurnover] = useState(0);
+  const [period, setPeriod] = useState<Period>("week");
   const [infoText, setInfoText] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,15 @@ export default function App() {
     setWeekEndsIn(r.week_ends_in);
   }, []);
 
+  const loadTop = useCallback(async (p: Period) => {
+    const res = await api.leaderboard(p);
+    setLeaders(res.items);
+    setMyPlace(res.me.place);
+    setMyWeekTurnover(res.me.turnover);
+    setWeekEndsIn(res.week_ends_in);
+    setPeriod(p);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -42,7 +53,9 @@ export default function App() {
       const initData = await waitForInitData();
       if (!initData && !import.meta.env.DEV) {
         if (!cancelled) {
-          setError("Нет данных Telegram. Откройте Mini App кнопкой из бота @CryptoTradesi_bot");
+          setError(
+            "Нет данных Telegram. Откройте Mini App кнопкой из бота @CryptoTradesi_bot",
+          );
           setLoading(false);
         }
         return;
@@ -74,19 +87,19 @@ export default function App() {
 
   async function go(next: Page) {
     setError("");
+    unlockSound();
     if (next === "orders" && me) {
       const res = await api.orders();
       setOrders(res.orders);
     }
     if (next === "top") {
-      const res = await api.leaderboard();
-      setLeaders(res.items);
-      setMyPlace(res.me.place);
-      setMyWeekTurnover(res.me.turnover);
-      setWeekEndsIn(res.week_ends_in);
+      await loadTop(period);
     }
     if (next === "profile" || next === "create") {
       await refresh();
+    }
+    if (next === "info") {
+      setInfoText(cfg?.support_url ? `Поддержка: ${cfg.support_url}` : "Поддержка");
     }
     setPage(next);
   }
@@ -109,9 +122,13 @@ export default function App() {
       return;
     }
     if (!cfg) return;
+    if (kind === "support" && cfg.support_url) {
+      window.open(cfg.support_url, "_blank");
+      return;
+    }
     const map: Record<string, string> = {
       info: `Обмен ${cfg.brand}: продайте USDT (TRC20/TON) или TON и получите рубли на СБП/карту.`,
-      security: "Мы не храним seed-фразы. Перевод крипты — только на адреса/чеки из заявки.",
+      security: "Мы не храним seed-фразы. Перевод крипты — только по инструкции оператора.",
       support: `Поддержка: ${cfg.support_url}`,
       history: "История доступна в разделе «Мои заявки».",
       faq: `Минимум: ${cfg.min_usdt} USDT / ${cfg.min_ton} TON. Кулдаун между заявками — ${Math.round(cfg.order_cooldown_sec / 60)} мин.`,
@@ -129,7 +146,11 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell" data-brand={cfg.brand}>
+    <div
+      className="app-shell"
+      data-brand={cfg.brand}
+      onPointerDown={() => unlockSound()}
+    >
       {error && page === "home" ? <div className="error-banner">{error}</div> : null}
 
       {page === "home" && (
@@ -151,6 +172,8 @@ export default function App() {
           myPlace={myPlace}
           myTurnover={myWeekTurnover}
           weekEndsIn={weekEndsIn}
+          period={period}
+          onPeriod={(p) => void loadTop(p)}
           onBack={() => setPage("home")}
           onOpenInfo={openInfo}
         />
@@ -179,7 +202,7 @@ export default function App() {
             type="button"
             className="btn-primary"
             style={{ width: "100%", marginTop: 14 }}
-            onClick={() => setPage("top")}
+            onClick={() => setPage("home")}
           >
             Назад
           </button>
