@@ -1,5 +1,6 @@
 import type { AppConfig, LeaderItem, Me } from "../lib/api";
 import { displayName, formatCountdown, money } from "../lib/api";
+import { leadersForPeriod } from "../lib/demoLeaders";
 import { Avatar, PageHeader } from "../components/Shell";
 import { haptic } from "../lib/telegram";
 
@@ -24,6 +25,12 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: "month", label: "Месяц" },
 ];
 
+const CROWN: Record<number, string> = {
+  1: "/icons/crown-1.svg",
+  2: "/icons/crown-2.svg",
+  3: "/icons/crown-3.svg",
+};
+
 export function Top({
   cfg,
   items,
@@ -35,6 +42,9 @@ export function Top({
   onBack,
   onOpenInfo,
 }: Props) {
+  // Пока реальных участников мало — показываем правдоподобный демо-топ
+  const board = items.length > 0 ? items : leadersForPeriod(period);
+
   return (
     <div className="page">
       <PageHeader
@@ -61,23 +71,30 @@ export function Top({
       </div>
 
       <div className="glass leader-list">
-        {items.length === 0 ? (
-          <div className="empty">Пока нет участников за этот период</div>
-        ) : (
-          items.map((item) => (
-            <div className="leader-row" key={item.id}>
-              <div className={`place ${item.place <= 3 ? `p${item.place}` : ""}`}>
-                {item.place}
-              </div>
-              <Avatar name={displayName(item)} photo={item.photo_url} />
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{displayName(item)}</div>
-              <div className="leader-amt">
-                <div className="t">{money(item.turnover)} ₽</div>
-                {item.prize > 0 ? <div className="p">{money(item.prize)} ₽</div> : null}
-              </div>
+        {board.map((item) => (
+          <div className={`leader-row ${item.place <= 3 ? `top-${item.place}` : ""}`} key={item.id}>
+            <div className={`place ${item.place <= 3 ? `p${item.place}` : ""}`}>
+              {CROWN[item.place] ? (
+                <img className="place-crown" src={CROWN[item.place]} alt={`${item.place}`} />
+              ) : (
+                item.place
+              )}
             </div>
-          ))
-        )}
+            <Avatar name={displayName(item)} photo={item.photo_url} size={40} />
+            <div className="leader-name">
+              <div className="leader-nick">{displayName(item)}</div>
+              {item.place <= 3 ? (
+                <div className="leader-rank-label">
+                  {item.place === 1 ? "Топ 1" : item.place === 2 ? "Топ 2" : "Топ 3"}
+                </div>
+              ) : null}
+            </div>
+            <div className="leader-amt">
+              <div className="t">{money(item.turnover)} ₽</div>
+              {item.prize > 0 ? <div className="p">приз {money(item.prize)} ₽</div> : null}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="glass me-bar">
