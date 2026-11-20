@@ -42,7 +42,7 @@ export function Profile({ cfg, me, onBack }: Props) {
         </div>
       </div>
 
-      <div className="glass card-pad card-pad-lg" style={{ marginBottom: 12 }}>
+      <div className="glass card-pad card-pad-lg profile-stats-fill">
         <div className="stat-grid stat-grid-lg">
           <div>
             <div className="k">Telegram ID</div>
@@ -79,7 +79,7 @@ export function Profile({ cfg, me, onBack }: Props) {
         </div>
       </div>
 
-      <div className="glass card-pad card-pad-lg">
+      <div className="glass card-pad card-pad-lg profile-ref">
         <strong className="ref-title">Реферальная ссылка</strong>
         <p className="ref-desc">
           За каждого реферала с 1 успешным обменом — {money(cfg.ref_bonus)} ₽ на бонусный баланс.

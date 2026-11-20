@@ -29,8 +29,25 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
 
   const methods = cfg.methods[asset] || [];
   const rate = cfg.rates[asset];
+  const marketUsd = cfg.market?.USD ?? cfg.rates.USDT;
+  const marketUsdt = cfg.market?.USDT ?? cfg.rates.USDT;
   const min = asset === "USDT" ? cfg.min_usdt : cfg.min_ton;
   const amountNum = parseFloat(amount.replace(",", ".")) || 0;
+
+  const assetLabel =
+    asset === "TON"
+      ? "TON"
+      : method === "trc20"
+        ? "USDT (TRC20)"
+        : method === "ton"
+          ? "USDT (TON)"
+          : method === "cryptobot"
+            ? "USDT (Crypto Bot)"
+            : method === "xrocket"
+              ? "USDT (xRocket)"
+              : "USDT";
+  const assetLogo = asset === "TON" ? "/icons/ton.svg" : "/icons/usdt.svg";
+
   const bonusNum = Math.min(
     parseFloat(bonus.replace(",", ".")) || 0,
     me.bonus_balance,
@@ -101,7 +118,23 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
         brand={cfg.brand}
       />
 
-      <div className="rate-bar">Курс {money(rate)}</div>
+      <div className="rate-bar rate-bar-soft">
+        <div className="marquee">
+          <div className="marquee-track">
+            {[0, 1].map((i) => (
+              <span className="marquee-chunk" key={i}>
+                <img src="/icons/usdt.svg" alt="" />
+                <span>1 USD = {money(marketUsd)} ₽</span>
+                <img src="/icons/usdt.svg" alt="" />
+                <span>1 USDT = {money(marketUsdt)} ₽</span>
+                <img src="/icons/ton.svg" alt="" />
+                <span>1 TON = {money(cfg.rates.TON)} ₽</span>
+                <span className="marquee-sep">·</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="glass exchange-card give">
         <div className="row-top">
@@ -121,7 +154,9 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             className="asset-pill"
             onClick={() => switchAsset(asset === "USDT" ? "TON" : "USDT")}
           >
-            {asset === "USDT" ? "🟢" : "💎"} {asset} ▾
+            <span>{assetLabel}</span>
+            <img src={assetLogo} alt="" className="asset-pill-logo" />
+            <span className="asset-pill-caret">▾</span>
           </button>
         </div>
       </div>
@@ -135,7 +170,7 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
         <SwapIcon />
       </button>
 
-      <div className="glass exchange-card get">
+      <div className="glass exchange-card get get-soft">
         <div className="row-top">
           <span>Вы получаете</span>
           <span>{cfg.payout_label}</span>

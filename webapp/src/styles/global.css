@@ -318,8 +318,9 @@ button {
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  aspect-ratio: 1 / 1;
-  padding: 14px 14px 16px;
+  min-height: 0;
+  aspect-ratio: 1 / 0.92;
+  padding: 12px 12px 10px;
   text-align: left;
   width: 100%;
 }
@@ -329,11 +330,11 @@ button {
 }
 
 .square-tile-icon {
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   object-fit: contain;
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   filter: drop-shadow(0 4px 10px rgba(0, 40, 120, 0.35));
 }
 
@@ -345,7 +346,8 @@ button {
 }
 
 .square-tile-sub {
-  margin-top: 4px;
+  margin-top: 3px;
+  margin-bottom: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
@@ -353,8 +355,9 @@ button {
 
 .square-tile-chev {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .ref-note-lg {
@@ -367,16 +370,24 @@ button {
   min-width: 0;
 }
 
-.logo-orb-drag {
-  touch-action: none;
-  cursor: grab;
-  transition: transform 0.18s ease;
-  user-select: none;
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 24px);
+  padding-bottom: 8px;
 }
 
-.logo-orb-drag:active {
-  cursor: grabbing;
-  transition: none;
+.profile-stats-fill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 12px;
+  min-height: 220px;
+}
+
+.profile-ref {
+  margin-top: auto;
 }
 
 .user-chip-lg {
@@ -400,13 +411,19 @@ button {
   padding: 18px;
 }
 
+.stat-grid-lg {
+  gap: 18px 16px;
+}
+
 .stat-grid-lg .k {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .stat-grid-lg .v {
-  font-size: 16px;
-  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 5px;
 }
 
 .ref-title {
@@ -637,8 +654,8 @@ button {
   border-radius: 999px;
   padding: 14px 18px;
   font-weight: 700;
-  background: linear-gradient(90deg, #1a6fe8, #3aa0ff 55%, #6ec3ff);
-  box-shadow: 0 8px 24px rgba(40, 130, 255, 0.4);
+  background: linear-gradient(90deg, #2f7bc8, #4a96d6 55%, #5aa6de);
+  box-shadow: 0 8px 22px rgba(40, 110, 200, 0.28);
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
@@ -782,6 +799,41 @@ button {
   margin-top: 8px;
 }
 
+.exchange-card.get-soft {
+  background: linear-gradient(120deg, #2a6fbf 0%, #3d8fd4 55%, #4ea3e0 100%);
+  border: 1px solid rgba(170, 210, 255, 0.28);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.exchange-card.get-soft::before,
+.exchange-card.get-soft::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #7ec8ff, #3a9be0 50%, #1f6fbf);
+  opacity: 0.95;
+}
+
+.exchange-card.get-soft::before {
+  left: 8px;
+}
+
+.exchange-card.get-soft::after {
+  right: 8px;
+}
+
+.exchange-card.get-soft .row-top,
+.exchange-card.get-soft > div {
+  position: relative;
+  z-index: 1;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
 .exchange-card .row-top {
   display: flex;
   justify-content: space-between;
@@ -804,13 +856,26 @@ button {
 .asset-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.15);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 58%;
+}
+
+.asset-pill-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.asset-pill-caret {
+  opacity: 0.75;
 }
 
 .swap-btn {
@@ -844,8 +909,8 @@ button {
 }
 
 .chip.active {
-  background: linear-gradient(180deg, rgba(50, 130, 255, 0.55), rgba(20, 80, 200, 0.55));
-  border-color: rgba(160, 210, 255, 0.55);
+  background: linear-gradient(180deg, rgba(70, 130, 200, 0.42), rgba(40, 90, 160, 0.42));
+  border-color: rgba(150, 190, 240, 0.4);
 }
 
 .chip:active {
@@ -911,7 +976,7 @@ button {
 }
 
 .toggle.on {
-  background: linear-gradient(90deg, #1a6fe8, #4aadff);
+  background: linear-gradient(90deg, #2f7bc8, #4a96d6);
 }
 
 .toggle i {
@@ -1042,7 +1107,71 @@ button {
   margin: 8px 0 12px;
   padding: 10px 14px;
   border-radius: 14px;
-  background: linear-gradient(90deg, #1a6fe8, #3aa0ff);
+  background: linear-gradient(90deg, #2a6fbf, #3d8fd4);
   font-weight: 700;
   text-align: center;
+}
+
+.rate-bar-soft {
+  background: linear-gradient(90deg, #2a6fbf 0%, #3d8fd4 55%, #4ea3e0 100%);
+  border: 1px solid rgba(170, 210, 255, 0.28);
+  padding: 0;
+  overflow: hidden;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.marquee {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.marquee-track {
+  display: inline-flex;
+  width: max-content;
+  animation: marqueeRight 18s linear infinite;
+}
+
+.marquee-chunk {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.marquee-chunk img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.marquee-sep {
+  opacity: 0.55;
+  margin: 0 4px;
+}
+
+@keyframes marqueeRight {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.btn-solid {
+  background: linear-gradient(180deg, #4a96d6, #2f7bc8) !important;
+}
+
+.toggle.on {
+  background: linear-gradient(90deg, #2f7bc8, #4a96d6) !important;
+}
+
+.check.on {
+  background: linear-gradient(180deg, #4a96d6, #2f7bc8) !important;
 }

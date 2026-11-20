@@ -93,11 +93,18 @@ def create_app(cfg: Config, db: DB, bot_username: str | None = None) -> web.Appl
     async def api_config(_: web.Request) -> web.Response:
         rates = await refresh_live_rates(cfg, db)
         totals = await db.totals()
+        usdt_m = await db.get_setting("usdt_market")
+        ton_m = await db.get_setting("ton_market")
         return web.json_response(
             {
                 "brand": cfg.brand,
                 "brand_title": cfg.brand_title,
                 "rates": rates,
+                "market": {
+                    "USD": float(usdt_m) if usdt_m else rates["USDT"],
+                    "USDT": float(usdt_m) if usdt_m else rates["USDT"],
+                    "TON": float(ton_m) if ton_m else rates["TON"],
+                },
                 "min_usdt": cfg.min_usdt,
                 "min_ton": cfg.min_ton,
                 "ref_bonus": cfg.ref_bonus,

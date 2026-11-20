@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type PointerEvent } from "react";
+import type { ReactNode } from "react";
 import { BackArrow, Chevron } from "./Icons";
 import { haptic } from "../lib/telegram";
 
@@ -11,70 +11,11 @@ export function BrandHead({ title }: { title: string }) {
   );
 }
 
-export function DraggableLogo({ brand }: { brand: string }) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const drag = useRef<{
-    active: boolean;
-    startX: number;
-    startY: number;
-    ox: number;
-    oy: number;
-  } | null>(null);
-
-  function onDown(e: PointerEvent) {
-    haptic();
-    const el = ref.current;
-    if (!el) return;
-    el.setPointerCapture(e.pointerId);
-    drag.current = {
-      active: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      ox: offset.x,
-      oy: offset.y,
-    };
-  }
-
-  function onMove(e: PointerEvent) {
-    if (!drag.current?.active) return;
-    const dx = e.clientX - drag.current.startX;
-    const dy = e.clientY - drag.current.startY;
-    // только запад→север (влево и вверх), чтобы не тянуть Mini App вниз
-    const clampX = (v: number) => Math.max(-32, Math.min(0, v));
-    const clampY = (v: number) => Math.max(-32, Math.min(0, v));
-    setOffset({
-      x: clampX(drag.current.ox + dx),
-      y: clampY(drag.current.oy + dy),
-    });
-  }
-
-  function onUp(e: PointerEvent) {
-    if (!drag.current) return;
-    drag.current.active = false;
-    try {
-      ref.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      /* noop */
-    }
-    // мягко вернуть на место
-    setOffset({ x: 0, y: 0 });
-  }
-
+export function StaticLogo({ brand }: { brand: string }) {
   return (
-    <button
-      ref={ref}
-      type="button"
-      className="logo-orb logo-orb-drag"
-      aria-label="Logo"
-      style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-    >
+    <div className="logo-orb" aria-hidden>
       {brand.slice(0, 2).toUpperCase()}
-    </button>
+    </div>
   );
 }
 
@@ -106,7 +47,7 @@ export function PageHeader({
         <h2>{title}</h2>
         {subtitle ? <p>{subtitle}</p> : null}
       </div>
-      <DraggableLogo brand={brand} />
+      <StaticLogo brand={brand} />
     </div>
   );
 }

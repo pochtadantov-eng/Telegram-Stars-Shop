@@ -4,6 +4,7 @@ export type AppConfig = {
   brand: string;
   brand_title: string;
   rates: { USDT: number; TON: number };
+  market?: { USD: number; USDT: number; TON: number };
   min_usdt: number;
   min_ton: number;
   ref_bonus: number;
