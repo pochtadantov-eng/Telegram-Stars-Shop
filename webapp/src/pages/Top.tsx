@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import type { AppConfig, LeaderItem, Me } from "../lib/api";
 import { displayName, formatCountdown, money } from "../lib/api";
-import { leadersForPeriod } from "../lib/demoLeaders";
+import { leadersForPeriod, liveBoard } from "../lib/demoLeaders";
 import { Avatar, PageHeader } from "../components/Shell";
 import { haptic } from "../lib/telegram";
 
@@ -42,8 +43,28 @@ export function Top({
   onBack,
   onOpenInfo,
 }: Props) {
-  // Пока реальных участников мало — показываем правдоподобный демо-топ
-  const board = items.length > 0 ? items : leadersForPeriod(period);
+  const useDemo = items.length === 0;
+  const [tick, setTick] = useState(0);
+  const [board, setBoard] = useState<LeaderItem[]>(() =>
+    useDemo ? leadersForPeriod(period) : items,
+  );
+
+  useEffect(() => {
+    if (!useDemo) {
+      setBoard(items);
+      return;
+    }
+    setBoard(liveBoard(period, tick));
+  }, [useDemo, items, period, tick]);
+
+  useEffect(() => {
+    if (!useDemo) return;
+    // «живая» шкала: раз в ~7с кто-то выходит/заходит, суммы чуть меняются
+    const id = window.setInterval(() => {
+      setTick((t) => t + 1);
+    }, 7000);
+    return () => window.clearInterval(id);
+  }, [useDemo]);
 
   return (
     <div className="page">
@@ -63,6 +84,7 @@ export function Top({
             onClick={() => {
               haptic("select");
               onPeriod(p.id);
+              setTick(0);
             }}
           >
             {p.label}
@@ -72,7 +94,10 @@ export function Top({
 
       <div className="glass leader-list">
         {board.map((item) => (
-          <div className={`leader-row ${item.place <= 3 ? `top-${item.place}` : ""}`} key={item.id}>
+          <div
+            className={`leader-row leader-row-live ${item.place <= 3 ? `top-${item.place}` : ""}`}
+            key={item.id}
+          >
             <div className={`place ${item.place <= 3 ? `p${item.place}` : ""}`}>
               {CROWN[item.place] ? (
                 <img className="place-crown" src={CROWN[item.place]} alt={`${item.place}`} />

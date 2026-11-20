@@ -796,6 +796,21 @@ button {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.leader-row-live {
+  animation: leaderIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes leaderIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .leader-row:last-child {
   border-bottom: none;
 }
