@@ -105,7 +105,7 @@ button {
 @keyframes iconDrop {
   from {
     opacity: 0;
-    transform: translateY(-14px) scale(0.9);
+    transform: translateY(-6px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -116,7 +116,7 @@ button {
 @keyframes contentIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -131,20 +131,7 @@ button {
 .page .avatar,
 .page .asset-pill-logo,
 .page .logo-orb {
-  animation: iconDrop 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.page .tile-icon:nth-child(1),
-.page .square-tile:nth-child(1) .square-tile-icon {
-  animation-delay: 0.02s;
-}
-
-.page .tile-lg .tile-icon-img {
-  animation-delay: 0.05s;
-}
-
-.page .square-tile:nth-child(2) .square-tile-icon {
-  animation-delay: 0.1s;
+  animation: iconDrop 0.16s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page .page-title-text,
@@ -153,17 +140,8 @@ button {
 .page .stat-grid > div,
 .page .section-label,
 .page .user-chip > div:last-child {
-  animation: contentIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: contentIn 0.14s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-
-.page .stat-grid > div:nth-child(1) { animation-delay: 0.02s; }
-.page .stat-grid > div:nth-child(2) { animation-delay: 0.04s; }
-.page .stat-grid > div:nth-child(3) { animation-delay: 0.06s; }
-.page .stat-grid > div:nth-child(4) { animation-delay: 0.08s; }
-.page .stat-grid > div:nth-child(5) { animation-delay: 0.1s; }
-.page .stat-grid > div:nth-child(6) { animation-delay: 0.12s; }
-.page .stat-grid > div:nth-child(7) { animation-delay: 0.14s; }
-.page .stat-grid > div:nth-child(8) { animation-delay: 0.16s; }
 
 @media (prefers-reduced-motion: reduce) {
   .page .tile-icon-img,
@@ -578,6 +556,9 @@ button {
   background: rgba(10, 24, 55, 0.55);
   font-weight: 700;
   font-size: 14px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .period-tab.active {

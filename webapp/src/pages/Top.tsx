@@ -141,12 +141,14 @@ export function Top({
             type="button"
             className={`period-tab ${period === p.id ? "active" : ""}`}
             onClick={() => {
+              if (p.id === period) return;
               haptic("select");
-              onPeriod(p.id);
+              // Мгновенно обновляем демо-шкалу, API — в фоне
               if (sparse) {
                 setDemoBoard(resetMarket(p.id));
                 setFlashIds([]);
               }
+              onPeriod(p.id);
             }}
           >
             {p.label}

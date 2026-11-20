@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, startTransition } from "react";
 import {
   api,
   type AppConfig,
@@ -38,12 +38,19 @@ export default function App() {
   }, []);
 
   const loadTop = useCallback(async (p: Period) => {
-    const res = await api.leaderboard(p);
-    setLeaders(res.items);
-    setMyPlace(res.me.place);
-    setMyWeekTurnover(res.me.turnover);
-    setWeekEndsIn(res.week_ends_in);
+    // Сразу переключаем вкладку — данные подтянутся фоном
     setPeriod(p);
+    try {
+      const res = await api.leaderboard(p);
+      startTransition(() => {
+        setLeaders(res.items);
+        setMyPlace(res.me.place);
+        setMyWeekTurnover(res.me.turnover);
+        setWeekEndsIn(res.week_ends_in);
+      });
+    } catch {
+      /* оставляем текущую шкалу / демо */
+    }
   }, []);
 
   useEffect(() => {
@@ -85,40 +92,48 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
-  async function go(next: Page) {
+  function go(next: Page) {
     haptic();
     setError("");
+    // Мгновенный переход — сеть только в фоне
+    setPage(next);
+
     if (next === "orders" && me) {
-      const res = await api.orders();
-      setOrders(res.orders);
+      void api
+        .orders()
+        .then((res) => startTransition(() => setOrders(res.orders)))
+        .catch(() => undefined);
     }
     if (next === "top") {
-      await loadTop(period);
+      void loadTop(period);
     }
     if (next === "profile" || next === "create") {
-      await refresh();
+      void refresh().catch(() => undefined);
     }
     if (next === "info") {
       setInfoText(cfg?.support_url ? `Поддержка: ${cfg.support_url}` : "Поддержка");
     }
-    setPage(next);
   }
 
   async function createOrder(payload: Record<string, unknown>) {
     await api.createOrder(payload);
-    await refresh();
-    const res = await api.orders();
-    setOrders(res.orders);
+    void refresh();
+    try {
+      const res = await api.orders();
+      setOrders(res.orders);
+    } catch {
+      /* ignore */
+    }
     setPage("orders");
   }
 
   function openInfo(kind: string) {
     if (kind === "profile") {
-      void go("profile");
+      go("profile");
       return;
     }
     if (kind === "orders") {
-      void go("orders");
+      go("orders");
       return;
     }
     if (!cfg) return;
@@ -156,7 +171,7 @@ export default function App() {
           cfg={cfg}
           me={me}
           weekEndsIn={weekEndsIn}
-          onNavigate={(p) => void go(p as Page)}
+          onNavigate={(p) => go(p as Page)}
         />
       )}
       {page === "profile" && (
