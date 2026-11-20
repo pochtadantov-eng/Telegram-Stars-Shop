@@ -1,7 +1,6 @@
 import type { AppConfig, LeaderItem, Me } from "../lib/api";
 import { displayName, formatCountdown, money } from "../lib/api";
 import { Avatar, PageHeader } from "../components/Shell";
-import { playClick, unlockSound } from "../lib/sound";
 import { haptic } from "../lib/telegram";
 
 export type Period = "day" | "week" | "month";
@@ -56,8 +55,6 @@ export function Top({
             type="button"
             className={`period-tab ${period === p.id ? "active" : ""}`}
             onClick={() => {
-              unlockSound();
-              playClick();
               haptic("select");
               onPeriod(p.id);
             }}
@@ -114,8 +111,6 @@ export function Top({
               key={kind}
               type="button"
               onClick={() => {
-                unlockSound();
-                playClick();
                 haptic();
                 onOpenInfo(kind);
               }}

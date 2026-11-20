@@ -3,7 +3,6 @@ import type { AppConfig, Me } from "../lib/api";
 import { METHOD_LABELS, money } from "../lib/api";
 import { PageHeader } from "../components/Shell";
 import { BankIcon, CardIcon, PersonIcon, PhoneIcon, SwapIcon } from "../components/Icons";
-import { playClick, playSuccess } from "../lib/sound";
 import { haptic } from "../lib/telegram";
 
 type Props = {
@@ -50,7 +49,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
   }, [amountNum, min, phone, bank, accept, me.cooldown_left, busy]);
 
   function switchAsset(next: "USDT" | "TON") {
-    playClick();
     haptic("select");
     setAsset(next);
     const list = cfg.methods[next] || [];
@@ -64,7 +62,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
       else if (me.cooldown_left > 0)
         setError(`Следующую заявку можно создать через ${Math.ceil(me.cooldown_left / 60)} мин.`);
       else setError("Заполните телефон и банк");
-      playClick(320);
       return;
     }
     setBusy(true);
@@ -82,7 +79,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
         want_pdf: wantPdf,
         accept_terms: true,
       });
-      playSuccess();
       haptic();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Ошибка";
@@ -91,7 +87,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
       } else {
         setError(msg);
       }
-      playClick(280);
     } finally {
       setBusy(false);
     }
@@ -174,7 +169,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             type="button"
             className="mini-round"
             onClick={() => {
-              playClick();
               setBonus(String(me.bonus_balance / 2));
             }}
           >
@@ -184,7 +178,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             type="button"
             className="mini-round"
             onClick={() => {
-              playClick();
               setBonus(String(me.bonus_balance));
             }}
           >
@@ -204,7 +197,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             type="button"
             className={`chip ${method === m ? "active" : ""}`}
             onClick={() => {
-              playClick();
               haptic("select");
               setMethod(m);
             }}
@@ -273,7 +265,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
             className={`toggle ${wantPdf ? "on" : ""}`}
             aria-label="PDF чек"
             onClick={() => {
-              playClick();
               haptic("select");
               setWantPdf((v) => !v);
             }}
@@ -297,7 +288,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
         className="glass tile"
         style={{ marginTop: 10 }}
         onClick={() => {
-          playClick();
           setTermsOpen((v) => !v);
         }}
       >
@@ -316,7 +306,6 @@ export function CreateExchange({ cfg, me, onBack, onSubmit }: Props) {
         type="button"
         className="check-row"
         onClick={() => {
-          playClick();
           haptic("select");
           setAccept((v) => !v);
         }}

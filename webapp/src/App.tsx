@@ -6,7 +6,6 @@ import {
   type Me,
   type Order,
 } from "./lib/api";
-import { unlockSound } from "./lib/sound";
 import { initTelegram, tg, waitForInitData } from "./lib/telegram";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
@@ -87,7 +86,6 @@ export default function App() {
 
   async function go(next: Page) {
     setError("");
-    unlockSound();
     if (next === "orders" && me) {
       const res = await api.orders();
       setOrders(res.orders);
@@ -146,11 +144,7 @@ export default function App() {
   }
 
   return (
-    <div
-      className="app-shell"
-      data-brand={cfg.brand}
-      onPointerDown={() => unlockSound()}
-    >
+    <div className="app-shell" data-brand={cfg.brand}>
       {error && page === "home" ? <div className="error-banner">{error}</div> : null}
 
       {page === "home" && (
