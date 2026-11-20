@@ -141,8 +141,8 @@ button {
 }
 
 .tile-lg {
-  padding: 20px 18px;
-  min-height: 88px;
+  padding: 22px 18px;
+  min-height: 96px;
 }
 
 .tile:active {
@@ -151,9 +151,9 @@ button {
 }
 
 .tile-icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 14px;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   background: transparent;
@@ -164,8 +164,8 @@ button {
 }
 
 .tile-lg .tile-icon {
-  width: 62px;
-  height: 62px;
+  width: 84px;
+  height: 84px;
 }
 
 .tile-icon-sm {
@@ -199,7 +199,11 @@ button {
 }
 
 .tile-lg .tile-body strong {
-  font-size: 18px;
+  font-size: 20px;
+}
+
+.tile-lg .tile-body span {
+  font-size: 14px;
 }
 
 .tile-body span {
@@ -261,6 +265,96 @@ button {
 .mini-stat-short {
   min-height: 86px;
   padding: 10px 12px;
+}
+
+.mini-stat-profile,
+.mini-stat-rates {
+  min-height: 108px;
+  padding: 14px;
+  text-align: left;
+}
+
+.value-lg {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+.nick-inside {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rate-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rate-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.coin-logo {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.square-grid {
+  align-items: stretch;
+}
+
+.square-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  aspect-ratio: 1 / 1;
+  padding: 14px 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.square-tile:active {
+  transform: scale(0.985);
+}
+
+.square-tile-icon {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 4px 10px rgba(0, 40, 120, 0.35));
+}
+
+.square-tile-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.square-tile-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.square-tile-chev {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
 }
 
 .ref-note-lg {

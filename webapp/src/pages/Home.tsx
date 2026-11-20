@@ -1,6 +1,7 @@
 import type { AppConfig, Me } from "../lib/api";
 import { displayName, money } from "../lib/api";
 import { Avatar, BrandHead, Tile, TileIcon } from "../components/Shell";
+import { Chevron as ChevronIcon } from "../components/Icons";
 import { haptic } from "../lib/telegram";
 
 type Props = {
@@ -20,28 +21,33 @@ export function Home({ cfg, me, onNavigate }: Props) {
       <div className="grid-2">
         <button
           type="button"
-          className="glass mini-stat mini-stat-short profile-stat"
+          className="glass mini-stat mini-stat-profile"
           onClick={() => {
             haptic();
             onNavigate("profile");
           }}
         >
           <div className="profile-stat-row">
-            <Avatar name={name} photo={me.photo_url || "/icons/profile.png"} size={44} />
+            <Avatar name={name} photo={me.photo_url || "/icons/profile.png"} size={52} />
             <div className="min-w-0">
-              <div className="label">Профиль</div>
-              <div className="value trunc">{name}</div>
-              <div className="rates">
-                <span>Оборот {money(me.turnover)} ₽</span>
-              </div>
+              <div className="label">Ваш оборот:</div>
+              <div className="value value-lg">{money(me.turnover)} ₽</div>
+              <div className="nick-inside trunc">{name}</div>
             </div>
           </div>
         </button>
-        <div className="glass mini-stat mini-stat-short">
+
+        <div className="glass mini-stat mini-stat-rates">
           <div className="label">Актуальные курсы</div>
-          <div className="rates rates-lg">
-            <span>1 USDT = {money(cfg.rates.USDT)} ₽</span>
-            <span>1 TON = {money(cfg.rates.TON)} ₽</span>
+          <div className="rate-lines">
+            <div className="rate-line">
+              <img className="coin-logo" src="/icons/usdt.svg" alt="USDT" />
+              <span>1 USDT = {money(cfg.rates.USDT)} ₽</span>
+            </div>
+            <div className="rate-line">
+              <img className="coin-logo" src="/icons/ton.svg" alt="TON" />
+              <span>1 TON = {money(cfg.rates.TON)} ₽</span>
+            </div>
           </div>
         </div>
       </div>
@@ -67,25 +73,50 @@ export function Home({ cfg, me, onNavigate }: Props) {
         onClick={() => onNavigate("top")}
       />
 
-      <div className="grid-2">
-        <Tile
-          compact
-          icon={<TileIcon src="/icons/support.png" alt="" />}
+      <div className="grid-2 square-grid">
+        <SquareTile
+          icon="/icons/support.png"
           title="Поддержка"
           subtitle="Оператор"
           onClick={() => {
+            haptic();
             if (cfg.support_url) window.open(cfg.support_url, "_blank");
             else onNavigate("info");
           }}
         />
-        <Tile
-          compact
-          icon={<TileIcon src="/icons/orders.png" alt="" />}
+        <SquareTile
+          icon="/icons/orders.png"
           title="Мои заявки"
           subtitle="Статус"
-          onClick={() => onNavigate("orders")}
+          onClick={() => {
+            haptic();
+            onNavigate("orders");
+          }}
         />
       </div>
     </div>
+  );
+}
+
+function SquareTile({
+  icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="glass square-tile" onClick={onClick}>
+      <img className="square-tile-icon" src={icon} alt="" draggable={false} />
+      <strong className="square-tile-title">{title}</strong>
+      <span className="square-tile-sub">{subtitle}</span>
+      <span className="chev square-tile-chev">
+        <ChevronIcon />
+      </span>
+    </button>
   );
 }
